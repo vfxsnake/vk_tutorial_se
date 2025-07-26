@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -34,6 +33,7 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
+
 class HelloTriangleApplication 
 {
 public:
@@ -53,14 +53,20 @@ private:
     vk::raii::Context context;
     vk::raii::Instance instance = nullptr;
     vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
+    
+    // adding the surface
+    vk::raii::SurfaceKHR surface = nullptr;
 
-    // here we add the phisical device instance
+    // here we add the physical device instance
     vk::raii::PhysicalDevice physicalDevice = nullptr;
     // adding the logic device
     vk::raii::Device device = nullptr;
     
     // adding graphics queue 
     vk::raii::Queue graphicsQueue = nullptr;
+    
+    // adding presenter queue
+    vk::raii::Queue presentQueue = nullptr;
 
     std::vector<const char*> requiredDeviceExtension = {
         vk::KHRSwapchainExtensionName,
@@ -82,6 +88,7 @@ private:
     {
         createInstance();
         setupDebugMessenger();
+        createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
     }
@@ -244,6 +251,16 @@ private:
         debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
     }
 
+    void createSurface()
+    {
+        VkSurfaceKHR _surface;
+        if (glfwCreateWindowSurface(*instance, window, nullptr, &_surface) != 0)
+        {
+            throw std::runtime_error("failed to create window surface!");
+        }
+        surface = vk::raii::SurfaceKHR(instance, _surface);
+    }
+
 
     void pickPhysicalDevice() 
     {
@@ -266,8 +283,11 @@ private:
             // A more explicit and arguably more readable C++ approach would be:
             // return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != vk::QueueFlags();*/
 
-            bool supportsGraphics =
-              std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
+            bool supportsGraphics = std::ranges::any_of( 
+                queueFamilies, 
+                []( auto const & qfp ) 
+                { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } 
+            );
 
             // Check if all required device extensions are available
             auto availableDeviceExtensions = device.enumerateDeviceExtensionProperties();
@@ -327,6 +347,48 @@ private:
         );
         
         auto graphicsIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
+        
+        // determine if a queue family Index that supports present
+        // checking if the grahicsIndex is good enough
+        auto presentIndex = physicalDevice.getSurfaceSupportKHR(graphicsIndex, *surface)
+                                            ? graphicsIndex
+                                            : ~0; // ~0 is an invalid value it can be declared like
+                                                  // constexpr uint32_t INVALID_QUEUE_INDEX = ~0u;
+        if (presentIndex == queueFamilyProperties.size())
+        {
+            // the graphicsIndex doesn't support present then look for another family index..
+            for (size_t i = 0; i < queueFamilyProperties.size(); i++)
+            {
+                if (
+                    (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) &&
+                    physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), *surface)
+                )
+                {
+                    graphicsIndex = static_cast<uint32_t>(i);
+                    presentIndex = graphicsIndex;
+                    break;
+                }
+            }
+
+            if (presentIndex == queueFamilyProperties.size())
+            {
+                // there's nothing like a single family index that supports both graphics and presenter, look for another
+                for (size_t i = 0; i < queueFamilyProperties.size(); i++)
+                {
+                    if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), *surface))
+                    {
+                        presentIndex = static_cast<uint32_t>(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ((graphicsIndex == queueFamilyProperties.size()) || (presentIndex == queueFamilyProperties.size()))
+        {
+            throw std::runtime_error("could not find a queue for graphics or present -> Terminating");
+        }
+
         // query for Vulkan 1.3 features:
         vk::StructureChain<
                 vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
@@ -354,6 +416,7 @@ private:
 
         device = vk::raii::Device(physicalDevice, deviceCreateInfo);
         graphicsQueue = vk::raii::Queue(device, graphicsIndex, 0);
+        presentQueue = vk::raii::Queue(device, presentIndex, 0);
     }
 
     std::vector<const char*> getRequiredExtensions()
