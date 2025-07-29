@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <memory>
 #include <algorithm>
+#include <limits>
 
 // #include <unordered_set> // For suggested performance improvement
 // #include <string_view>   // For suggested performance improvement
@@ -68,6 +69,13 @@ private:
     // adding presenter queue
     vk::raii::Queue presentQueue = nullptr;
 
+    // swap chain definition
+    vk::raii::SwapchainKHR swapChain = nullptr;
+    std::vector<vk::Image> swapChainImages;
+    vk::Format swapChainImageFormat = vk::Format::eUndefined;
+    vk::Extent2D swapChainExtent;
+    std::vector<vk::raii::ImageView> swapChainImageViews;
+
     std::vector<const char*> requiredDeviceExtension = {
         vk::KHRSwapchainExtensionName,
         vk::KHRSpirv14ExtensionName,
@@ -91,6 +99,7 @@ private:
         createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
+        createSwapChain();
     }
 
     void mainLoop()
@@ -116,6 +125,7 @@ private:
             .engineVersion =  VK_MAKE_VERSION(1, 0, 0),
             .apiVersion = vk::ApiVersion14
         };
+
         // Get the required layers
         std::vector<char const*> requiredLayers;
         if (enableValidationLayers)
@@ -417,6 +427,73 @@ private:
         device = vk::raii::Device(physicalDevice, deviceCreateInfo);
         graphicsQueue = vk::raii::Queue(device, graphicsIndex, 0);
         presentQueue = vk::raii::Queue(device, presentIndex, 0);
+    }
+
+    void createSwapChain()
+    {
+        auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+        swapChainImageFormat = chooseSwapSurfaceFormat(physicalDevice.getSurfaceFormatsKHR(surface));
+        swapChainExtent = chooseSwapExtent(surfaceCapabilities);
+        auto minImageCount =std::max(3u, surfaceCapabilities.minImageCount);
+        minImageCount = (
+                surfaceCapabilities.maxImageCount > 0 && 
+                minImageCount > surfaceCapabilities.maxImageCount
+            ) ? surfaceCapabilities.maxImageCount: minImageCount;
+        vk::SwapchainCreateInfoKHR swapChainCreateInfo{
+            .surface = surface,
+            .minImageCount = minImageCount,
+            .imageFormat = swapChainImageFormat,
+            .imageColorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
+            .imageExtent = swapChainExtent,
+            .imageArrayLayers = 1,
+            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+            .imageSharingMode = vk::SharingMode::eExclusive,
+            .preTransform = surfaceCapabilities.currentTransform,
+            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            .presentMode = chooseSwapPresentMode(physicalDevice.getSurfacePresentModesKHR(surface)),
+            .clipped = true
+        };
+        swapChain = vk::raii::SwapchainKHR(device, swapChainCreateInfo);
+        swapChainImages = swapChain.getImages();
+    }
+
+    static vk::Format chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
+    {
+        const auto formatIt = std::ranges::find_if(
+            availableFormats,
+            [](const auto& format)
+            {
+                return format.format == vk::Format::eB8G8R8A8Srgb && 
+                       format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear; 
+            }
+        );
+        return formatIt != availableFormats.end() ? formatIt->format : availableFormats[0].format;
+    }
+
+    static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
+    {
+        return std::ranges::any_of(
+            availablePresentModes,
+            [](const vk::PresentModeKHR value)
+            {
+                return vk::PresentModeKHR::eMailbox == value;
+            }
+        ) ? vk::PresentModeKHR::eMailbox : vk::PresentModeKHR::eFifo;
+    }
+
+    vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
+    {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        {
+            return capabilities.currentExtent;
+        }
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        return {
+            std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+            std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+        };
     }
 
     std::vector<const char*> getRequiredExtensions()
