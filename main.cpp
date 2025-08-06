@@ -513,7 +513,11 @@ private:
             .pDynamicStates = dynamicStates.data()
         };
 
-        vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+        vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
+            .setLayoutCount = 0, 
+            .pushConstantRangeCount = 0
+        };
+        
         pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
 
         vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
