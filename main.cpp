@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream> // for reading files like shaders
 #include <stdexcept>
 #include <vector>
 #include <cstring>
@@ -18,7 +19,7 @@ import vulkan_hpp;
 
 #include <vulkan/vk_platform.h>
 
-#define GLFW_INCLUDE_VULKAN // this is required only for creating the windows surface
+#define GLFW_INCLUDE_VULKAN // this is required only for creating the windows surface and most be place before calling GLFW
 #include <GLFW/glfw3.h>
 
 const uint32_t WIDTH = 800;
@@ -64,17 +65,17 @@ private:
     vk::raii::Device device = nullptr;
     
     // adding graphics queue 
-    vk::raii::Queue graphicsQueue = nullptr;
+    vk::raii::Queue queue = nullptr;
     
-    // adding presenter queue
-    vk::raii::Queue presentQueue = nullptr;
-
     // swap chain definition
     vk::raii::SwapchainKHR swapChain = nullptr;
     std::vector<vk::Image> swapChainImages;
     vk::Format swapChainImageFormat = vk::Format::eUndefined;
     vk::Extent2D swapChainExtent;
     std::vector<vk::raii::ImageView> swapChainImageViews;
+
+    vk::raii::PipelineLayout pipelineLayout = nullptr;
+    vk::raii::Pipeline graphicsPipeline = nullptr;
 
     std::vector<const char*> requiredDeviceExtension = {
         vk::KHRSwapchainExtensionName,
@@ -263,7 +264,7 @@ private:
         debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
     }
 
-    void createSurface()
+    void createSurface() 
     {
         VkSurfaceKHR _surface;
         if (glfwCreateWindowSurface(*instance, window, nullptr, &_surface) != 0)
@@ -272,7 +273,6 @@ private:
         }
         surface = vk::raii::SurfaceKHR(instance, _surface);
     }
-
 
     void pickPhysicalDevice() 
     {
@@ -348,72 +348,41 @@ private:
     {
         // find the index of the first queue family that supports graphics
         std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
-
-        // get the first index into queueFamilyProperties which supports graphics
-        auto graphicsQueueFamilyProperty = std::ranges::find_if(
-            queueFamilyProperties,
-            [](auto const & qfp)
-            {
-                return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
-            }
-        );
         
-        auto graphicsIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
-        
-        // determine if a queue family Index that supports present
-        // checking if the grahicsIndex is good enough
-        auto presentIndex = physicalDevice.getSurfaceSupportKHR(graphicsIndex, *surface)
-                                            ? graphicsIndex
-                                            : ~0; // ~0 is an invalid value it can be declared like
-                                                  // constexpr uint32_t INVALID_QUEUE_INDEX = ~0u;
-        if (presentIndex == queueFamilyProperties.size())
+        // get the first index into queueFamilyProperties which supports both graphics and presnet
+        uint32_t queueIndex = ~0;
+        for (uint32_t qfpIndex = 0; qfpIndex < queueFamilyProperties.size(); qfpIndex++)
         {
-            // the graphicsIndex doesn't support present then look for another family index..
-            for (size_t i = 0; i < queueFamilyProperties.size(); i++)
+            if (
+                (queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics) && 
+                physicalDevice.getSurfaceSupportKHR(qfpIndex, *surface)
+            )
             {
-                if (
-                    (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) &&
-                    physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), *surface)
-                )
-                {
-                    graphicsIndex = static_cast<uint32_t>(i);
-                    presentIndex = graphicsIndex;
-                    break;
-                }
-            }
-
-            if (presentIndex == queueFamilyProperties.size())
-            {
-                // there's nothing like a single family index that supports both graphics and presenter, look for another
-                for (size_t i = 0; i < queueFamilyProperties.size(); i++)
-                {
-                    if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), *surface))
-                    {
-                        presentIndex = static_cast<uint32_t>(i);
-                        break;
-                    }
-                }
+                // found a queue family that supports both graphics and present
+                queueIndex = qfpIndex;
+                break;
             }
         }
-
-        if ((graphicsIndex == queueFamilyProperties.size()) || (presentIndex == queueFamilyProperties.size()))
+        if (queueIndex == ~0)
         {
-            throw std::runtime_error("could not find a queue for graphics or present -> Terminating");
+            throw std::runtime_error("Could not find a queue for graphics present -> terminating");
         }
 
-        // query for Vulkan 1.3 features:
+        // query for Vulkan 1.3 features
         vk::StructureChain<
-                vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+                vk::PhysicalDeviceFeatures2, 
+                vk::PhysicalDeviceVulkan13Features, 
+                vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
             > featureChain = {
-                {}, // empty vk::PhysicalDeviceFeatures2
-                {.dynamicRendering = true}, // vk::PhysicalDeviceVulkan13Features with dynamic rendering
-                {.extendedDynamicState = true} // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT with dynamic state 
+                {}, // vk::PhysicalDeviceFeatures2
+                {.dynamicRendering = true}, // vk::PhysicalDeviceVulkan13Features
+                {.extendedDynamicState=true} // vk::physicalDeviceExtendedDynamicStateFeaturesEXT    
             };
-
-        // creating the device:
+            
+        // create Device
         float queuePriority = 0.0f;
         vk::DeviceQueueCreateInfo deviceQueueCreateInfo{
-            .queueFamilyIndex = graphicsIndex,
+            .queueFamilyIndex = queueIndex,
             .queueCount = 1,
             .pQueuePriorities = &queuePriority
         };
@@ -423,12 +392,11 @@ private:
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &deviceQueueCreateInfo,
             .enabledExtensionCount = static_cast<uint32_t>(requiredDeviceExtension.size()),
-            .ppEnabledExtensionNames = requiredDeviceExtension.data() 
+            .ppEnabledExtensionNames = requiredDeviceExtension.data()
         };
 
         device = vk::raii::Device(physicalDevice, deviceCreateInfo);
-        graphicsQueue = vk::raii::Queue(device, graphicsIndex, 0);
-        presentQueue = vk::raii::Queue(device, presentIndex, 0);
+        queue = vk::raii::Queue(device, queueIndex, 0);
     }
 
     void createSwapChain()
@@ -455,6 +423,7 @@ private:
             .presentMode = chooseSwapPresentMode(physicalDevice.getSurfacePresentModesKHR(surface)),
             .clipped = true
         };
+       
         swapChain = vk::raii::SwapchainKHR(device, swapChainCreateInfo);
         swapChainImages = swapChain.getImages();
     }
@@ -462,11 +431,13 @@ private:
     void createImageViews()
     {
         swapChainImageViews.clear();
+        
         vk::ImageViewCreateInfo imageViewCreateInfo{
             .viewType = vk::ImageViewType::e2D,
             .format = swapChainImageFormat,
             .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0,1,0,1}
         };
+
         for (auto image : swapChainImages)
         {
             imageViewCreateInfo.image = image;
@@ -476,7 +447,108 @@ private:
 
     void createGraphicsPipeline()
     {
+        vk::raii::ShaderModule shaderModule = createShaderModule(readFile("shaders/slang_base.spv"));
+
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
+            .stage = vk::ShaderStageFlagBits::eVertex,
+            .module = shaderModule,
+            .pName = "vertMain"
+        };
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo{
+            .stage = vk::ShaderStageFlagBits::eFragment,
+            .module = shaderModule,
+            .pName = "fragMain"
+        };
+
+        vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+        vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+        vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
+            .topology = vk::PrimitiveTopology::eTriangleList,
+        };
+        vk::PipelineViewportStateCreateInfo viewportState{
+            .viewportCount = 1,
+            .scissorCount = 1
+        };
+
+        vk::PipelineRasterizationStateCreateInfo rasterizer{
+            .depthClampEnable = vk::False,
+            .rasterizerDiscardEnable = vk::False,
+            .polygonMode = vk::PolygonMode::eFill,
+            .cullMode = vk::CullModeFlagBits::eBack,
+            .frontFace = vk::FrontFace::eClockwise,
+            .depthBiasEnable = vk::False,
+            .depthBiasSlopeFactor = 1.0f,
+            .lineWidth = 1.0f
+        };
+
+        vk::PipelineMultisampleStateCreateInfo multisampling{
+            .rasterizationSamples = vk::SampleCountFlagBits::e1,
+            .sampleShadingEnable = vk::False
+        };
+
+        vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+            .blendEnable = vk::False,
+            .colorWriteMask = vk::ColorComponentFlagBits::eR |
+                              vk::ColorComponentFlagBits::eG |
+                              vk::ColorComponentFlagBits::eB |
+                              vk::ColorComponentFlagBits::eA
+        };
+
+        vk::PipelineColorBlendStateCreateInfo colorBlending{
+            .logicOpEnable = vk::False,
+            .logicOp = vk::LogicOp::eCopy,
+            .attachmentCount = 1,
+            .pAttachments = &colorBlendAttachment
+        };
+
+        std::vector dynamicStates = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor
+        };
+
+        vk::PipelineDynamicStateCreateInfo dynamicState{
+            .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+            .pDynamicStates = dynamicStates.data()
+        };
+
+        vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+        pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
+
+        vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &swapChainImageFormat
+        };
+
+        vk::GraphicsPipelineCreateInfo pipelineInfo{
+            .pNext = &pipelineRenderingCreateInfo,
+            .stageCount = 2,
+            .pStages = shaderStages,
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssembly,
+            .pViewportState = &viewportState,
+            .pRasterizationState = &rasterizer,
+            .pMultisampleState = &multisampling,
+            .pColorBlendState = &colorBlending,
+            .pDynamicState = &dynamicState,
+            .layout = pipelineLayout,
+            .renderPass = nullptr
+        };
+
+        graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
+    }
+
+    [[nodiscard]] vk::raii::ShaderModule createShaderModule(const std::vector<char>& code) const
+    {
+        vk::ShaderModuleCreateInfo createInfo{
+            .codeSize = code.size() * sizeof(char),
+            .pCode = reinterpret_cast<const uint32_t*>(code.data())
+        };
+
+        vk::raii::ShaderModule shaderModule{device, createInfo};
         
+        return shaderModule;
     }
 
     static vk::Format chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
@@ -546,6 +618,20 @@ private:
             std::cerr << "validation layer: type " << to_string(type) << " msg " << pCallbackData->pMessage << "\n";
         }
         return vk::False;
+    }
+
+    static std::vector<char> readFile(const std::string& filename)
+    {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        if (!file.is_open())
+        {
+            throw std::runtime_error("failed to open file!");
+        }
+        std::vector<char> buffer(file.tellg());
+        file.seekg(0, std::ios::beg);
+        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        file.close();
+        return buffer;
     }
 };
 

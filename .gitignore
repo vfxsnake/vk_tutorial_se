@@ -20,6 +20,7 @@ vcpkg_installed/
 *.dll
 *.lib
 *.log
+*.spv
 
 # CMake
 CMakeCache.txt
