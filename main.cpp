@@ -40,6 +40,7 @@ constexpr bool enableValidationLayers = true;
 class HelloTriangleApplication 
 {
 public:
+
     void run()
     {
         // initialize and run the entire application from initialize to clean
@@ -84,6 +85,8 @@ private:
     uint32_t semaphoreIndex = 0;
     uint32_t currentFrame = 0;
 
+    bool framebufferResized = false;
+
     std::vector<const char*> requiredDeviceExtension = {
         vk::KHRSwapchainExtensionName,
         vk::KHRSpirv14ExtensionName,
@@ -96,9 +99,16 @@ private:
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        
+        window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+        glfwSetWindowUserPointer(window, this);
+        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    }
 
-        window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);    
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
+    {
+        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        app->framebufferResized = true;
     }
 
     void initVulkan()
@@ -126,10 +136,34 @@ private:
         device.waitIdle();
     }
 
+    void cleanupSwapChain()
+    {
+        swapChainImageViews.clear();
+        swapChain = nullptr;
+    }
+
     void cleanup()
     {
         glfwDestroyWindow(window);
         glfwTerminate();
+    }
+
+    void recreateSwapChain() 
+    {
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+        while (width ==0 || height==0)
+        {
+            glfwGetFramebufferSize(window, &width, &height);
+            glfwWaitEvents();
+        }
+
+        device.waitIdle();
+
+        cleanupSwapChain();
+        createSwapChain();
+        createImageViews();
     }
 
     void createInstance()
@@ -572,6 +606,7 @@ private:
 
     void createCommandBuffer()
     {
+        commandBuffers.clear();
         vk::CommandBufferAllocateInfo allocInfo{
             .commandPool = commandPool,
             .level = vk::CommandBufferLevel::ePrimary,
@@ -711,6 +746,17 @@ private:
             nullptr
         );
 
+        if (result == vk::Result::eErrorOutOfDateKHR)
+        {
+            recreateSwapChain();
+            return;
+        }
+
+        if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+        {
+            throw std::runtime_error("faliled to acquire swap chain image!");
+        }
+
         device.resetFences(*inFlightFences[currentFrame]);
         commandBuffers[currentFrame].reset();
         recordCommandBuffer(imageIndex);
@@ -737,17 +783,19 @@ private:
         };
 
         result = queue.presentKHR(presentInfoKHR);
-        switch (result)
+        if (
+            result == vk::Result::eErrorOutOfDateKHR ||
+            result == vk::Result::eSuboptimalKHR ||
+            framebufferResized
+        )
         {
-            case vk::Result::eSuccess: 
-                break;
-            case vk::Result::eSuboptimalKHR: 
-                std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR! \n"; 
-                break;
-            default:
-                break;
+            framebufferResized = false;
+            recreateSwapChain();
         }
-
+        else if (result != vk::Result::eSuccess)
+        {
+            throw std::runtime_error("failed to present swap chaing image!");
+        }
         semaphoreIndex = (semaphoreIndex + 1) % presentCompleteSemaphores.size();
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
