@@ -22,3 +22,22 @@ M1 — user reads `docs/vulkan_chapter_00-02_foundations.md` Parts 1 & 2, reads 
 
 **Open questions / notes:**
 - None.
+
+---
+
+## Session 2 — 2026-03-17
+
+**Covered:**
+- M1 theory session completed in full
+- Reviewed and corrected all 6 comprehension questions (Q3 inversion, Q4 portability/undefined behaviour, Q5 ImageView, Q6 RAII destruction order)
+- User wrote final one-paragraph Vulkan contract summary in their own words
+- M1 marked complete in progress tracker
+
+**Left off:**
+M1 complete. M2 not yet started — Windows environment checks not yet run.
+
+**Next session starts at:**
+M2 — verify four prerequisites in x64 Native Tools Command Prompt: `echo %VULKAN_SDK%`, run `vkcube.exe`, `cmake --version`, `git --version`. Once all four pass, write `CMakeLists.txt` and stub `src/main.cpp`.
+
+**Open questions / notes:**
+- None.
