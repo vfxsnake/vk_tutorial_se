@@ -41,3 +41,53 @@ M2 — verify four prerequisites in x64 Native Tools Command Prompt: `echo %VULK
 
 **Open questions / notes:**
 - None.
+
+---
+
+## Session 3 — 2026-03-18
+
+**Covered:**
+- Verified all four Windows prerequisites: VULKAN_SDK, vkcube.exe, cmake 4.1.0-rc1, git 2.50.0
+- Wrote `CMakeLists.txt` (FetchContent setup) and `src/main.cpp` (smoke test)
+- Fixed two bugs in main.cpp: undeclared `window` variable, wrong argument count on `vkEnumerateInstanceExtensionProperties`
+- Built and ran successfully — window opened, 19 extensions reported
+- M2 verification test passed. Chapter 00–02 complete.
+
+**Left off:**
+Chapter 00–02 fully complete. Ready to begin Chapter 03.
+
+**Next session starts at:**
+Chapter 03 — request the markdown for chapter 03, then proceed with the architecture discussion before the learning plan.
+
+**Open questions / notes:**
+- None.
+
+---
+
+## Session 4 — 2026-03-19
+
+**Covered:**
+- Generated `docs/vulkan_chapter_03_drawing_a_triangle.md` (18 sub-pages fetched and synthesised)
+- Full architecture discussion for Chapter 03 — all structural decisions agreed
+- Code style agreed and saved to `CLAUDE.md § Project-Wide Agreements` and `memory/feedback_code_style.md`
+- Generated `docs/vulkan_implementation_plan_03_drawing_a_triangle.md` — ground truth for all implementation sessions
+- Generated `docs/vulkan_learning_plan_03_drawing_a_triangle.md` — 7 milestones, 15 sessions
+
+**Key decisions made this session:**
+- `VulkanContext` by const reference; owns surface; non-copyable
+- `Renderer` calls `pipeline.record(commandBuffer, extent, imageView)`
+- Manual swap chain recreation in `Application`
+- Composition over inheritance; `IRecordable` deferred
+- ECS: `struct Entity { uint32_t id; }` in `scene/` layer (empty until Ch08)
+- Naming: `UpperCamelCase` classes, `camelCase()` methods, `camelCase_` members, `under_score` params/locals
+- Allman braces, Black-style struct init, `#pragma once`, west const, trailing return types for complex types
+- `auto`: required for lambdas/structured bindings/trailing placeholders; explicit when type carries meaning; deferred for construction RHS and iterators
+
+**Left off:**
+M1 theory session not yet started — learning plan is ready, user has not begun reading.
+
+**Next session starts at:**
+M1 Theory — read §03.00.01 and §03.00.02 in `vulkan_chapter_03_drawing_a_triangle.md`, then the two corresponding tutorial pages, then answer the 7 M1 comprehension questions.
+
+**Open questions / notes:**
+- None.
