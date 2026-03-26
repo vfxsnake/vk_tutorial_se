@@ -24,7 +24,7 @@ build-wls
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-session_log.md
+docs/session_log.md
 
 # Claude files
 CLAUDE.md
