@@ -3,6 +3,7 @@ project(VulkanTutorial LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)    # adding this for vscode to recognize .pApplicationName ... notation for structs
 
 # ── Vulkan SDK (found via VULKAN_SDK env var set by LunarG installer) ─────────
 find_package(Vulkan REQUIRED)

@@ -25,6 +25,8 @@ Renderer::drawFrame(SwapChain&, GraphicsPipeline&)
 3. `GraphicsPipeline` — needs `VulkanContext`, swap chain format
 4. `Renderer`       — needs `VulkanContext`
 
+**Implementation order (agreed 2026-03-23):** Build bottom-up, not top-down. Implement and verify each class independently using `main.cpp` as a temporary test harness before building the next layer. `Application` is written last, once all four classes are verified working.
+
 **Destruction order** (reverse of declaration order — RAII):
 `Renderer` → `GraphicsPipeline` → `SwapChain` → `VulkanContext`
 
@@ -170,7 +172,7 @@ private:
     bool     checkDeviceExtensionSupport(const vk::raii::PhysicalDevice& physical_device) const;
 
     // Instance creation helpers
-    static auto getRequiredInstanceExtensions(GLFWwindow* window) -> std::vector<const char*>;
+    static auto getRequiredInstanceExtensions() -> std::vector<const char*>;
     static bool checkValidationLayerSupport();
 
     // Debug messenger

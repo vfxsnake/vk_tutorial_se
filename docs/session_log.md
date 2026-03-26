@@ -91,3 +91,115 @@ M1 Theory — read §03.00.01 and §03.00.02 in `vulkan_chapter_03_drawing_a_tri
 
 **Open questions / notes:**
 - None.
+
+---
+
+## Session 5 — 2026-03-20
+
+**Covered:**
+- M1 Theory session completed in full (conversational one-question-at-a-time format)
+- Q1: vk::raii::Context vs vk::raii::Instance — bootstrapping role, dispatch tables, Maya MFn analogy discussed
+- Q2: Minimal driver overhead — undefined behaviour on bad inputs, not silent failure; layers run on CPU
+- Q3: Validation layers enabled via ENABLE_VALIDATION_LAYERS (derived from NDEBUG), static constexpr bool
+- Q4: apiVersion too high → instance creation fails (not device selection)
+- Q5: Bootstrapping problem — pNext trick attaches debug messenger create info to InstanceCreateInfo to cover the creation call itself
+- Q6: Callback must be static — non-static has hidden `this` parameter, incompatible with C function pointer signature
+- Q7: GLFWwindow* passed in constructor for createSurface (not createInstance); surface needed before physical device selection
+- User wrote one-paragraph summary; reviewed and corrected
+- M1 Theory marked complete
+
+**Left off:**
+M1 Theory complete. Ready to begin M1 Session B — Implementation.
+
+**Next session starts at:**
+M1 Implementation — create folder structure, write VulkanContext.h skeleton, then VulkanContext.cpp, Application.h, Application.cpp, main.cpp per the implementation checklist.
+
+**Open questions / notes:**
+- CLAUDE.md trimmed from 42.1k to 24.3k — Tutorial Structure Reference moved to `docs/reference_tutorial_structure.md`, Chapter 02 build setup moved to `docs/reference_chapter02_build_setup.md`.
+
+---
+
+## Session 6 — 2026-03-23
+
+**Covered:**
+- Recapped M1 Implementation scope and agreed build order
+- Created full folder structure: `core/`, `renderer/`, `scene/`, `utils/`, `scene/.gitkeep`
+- Discussed `.gitkeep` convention (zero-byte file to track empty directories in git)
+- Discussed copy/move delete semantics in depth — copy constructor vs copy assignment, move constructor vs move assignment, and why both pairs must be deleted
+- Discussed `const unique_ptr` vs deleted specials — they solve different problems, work together
+- Agreed on bottom-up build order: VulkanContext → SwapChain → GraphicsPipeline → Renderer → Application (saved to memory and implementation plan)
+- Started `VulkanContext.h` — public section complete (constructor, deleted specials with doc comments, accessor declarations, private init method stubs)
+
+**Left off:**
+`VulkanContext.h` partially written — public section and private init stubs done, helper methods and member variables not yet written.
+
+**Next session starts at:**
+Continue `VulkanContext.h` — add private helper methods (`isDeviceSuitable`, `findQueueFamily`, `checkDeviceExtensionSupport`, `getRequiredInstanceExtensions`, `checkValidationLayerSupport`, `makeDebugMessengerCreateInfo`, `debugCallback`) and member variables (context_, instance_, debugMessenger_, surface_, physicalDevice_, device_, graphicsQueue_, queueFamilyIndex_, static constants).
+
+**Open questions / notes:**
+- `getSurface()` is declared without `const` on the return reference — check against implementation plan at next review (plan says `const vk::raii::SurfaceKHR&`).
+
+---
+
+## Session 7 — 2026-03-24
+
+**Covered:**
+- Reviewed completed `VulkanContext.h` — found and fixed four issues: `getQueue()` missing `const`, `makeDebugMessangerCreateInfo` typo, `findQueueFamily` changed from `uint32_t` to `std::optional<uint32_t>` (added `<optional>` include), `getSurface()` const confirmed correct
+- Discussed `std::optional<uint32_t>` semantics — `.has_value()`, `*opt` access, why it's cleaner than `UINT32_MAX` sentinel
+- Agreed to defer helper function refactor (extract to free functions in anonymous namespace) until `VulkanContext` is running and validated
+- Started `VulkanContext.cpp` — includes, static member definitions, constructor body written
+- Fixed `VALIDATION_LAYERS` definition — missing string quotes around `VK_LAYER_KHRONOS_validation`
+- Identified that `instance_ = nullptr` initialiser is missing in the header (causes deleted default constructor error)
+
+**Left off:**
+Fixing `instance_` missing `= nullptr` in `VulkanContext.h`. `VulkanContext.cpp` has includes, static definitions, and constructor body — `createInstance` not yet written.
+
+**Next session starts at:**
+Fix `instance_ = nullptr` in `VulkanContext.h`, then write `createInstance()` in `VulkanContext.cpp`.
+
+---
+
+## Session 8 — 2026-03-25
+
+**Covered:**
+- Set up WSL2 IntelliSense build: added `CMAKE_EXPORT_COMPILE_COMMANDS ON` to CMakeLists.txt, created `build-wls/` Ninja build alongside existing `build/` Windows MSVC build
+- Fixed IntelliSense false positive for designated initializers by adding `VULKAN_HPP_NO_CONSTRUCTORS` to `c_cpp_properties.json` defines
+- Discussed `vk::raii::Context` as a bootstrap/loader object vs our `VulkanContext` module
+- Discussed `const char**` C-style arrays and the `std::vector<T>(first, last)` range constructor
+- Discussed `strcmp` return value semantics
+- Wrote `createInstance()` — `ApplicationInfo`, GLFW extension gathering, extension support check with range-based loops
+- Reviewed and fixed extension check: wrong `!= 0` condition corrected to `== 0` with `break`
+- Discussed `std::ranges::none_of` vs nested loop vs range-based loop — user chose range-based loops
+- Side discussions: windowing library abstraction (future), audio libraries (OpenAL Soft / miniaudio noted)
+
+**Left off:**
+`createInstance()` is partially complete — extension check and `ApplicationInfo` done, but validation layer block (ENABLE_VALIDATION_LAYERS check, layer names, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, pNext debug messenger chain) not yet written.
+
+**Next session starts at:**
+Continue `createInstance()` — add validation layer support: call `checkValidationLayersSupport()` when enabled, add `VK_EXT_DEBUG_UTILS_EXTENSION_NAME` to extensions, set `ppEnabledLayerNames` in `create_info`, attach `makeDebugMessengerCreateInfo()` to `create_info.pNext`. Then implement `checkValidationLayersSupport()` and `getRequiredInstanceExtensions()`.
+
+**Open questions / notes:**
+- `getRequiredInstanceExtensions()` is declared in the header but not yet used — decide whether to keep extension logic inline in `createInstance` or move it to the helper.
+- Future: make `VulkanContext` window-agnostic (abstract surface creation + extension gathering) — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 9 — 2026-03-26
+
+**Covered:**
+- Refactored inline extension logic into `getRequiredInstanceExtensions()` — GLFW extensions + `vk::EXTDebugUtilsExtensionName` when validation enabled
+- Discussed why `static` and explicit return type (not `auto`) are used in `.cpp` definitions
+- Discussed why static functions can't access member variables (`context_`)
+- Redesigned helper functions: four focused statics — `getRequiredInstanceExtensions()`, `checkExtensionSupport()`, `checkValidationLayerSupport()`, dropped `getRequiredValidationLayers()` (VALIDATION_LAYERS static member is sufficient)
+- `checkExtensionSupport(required, available)` and `checkValidationLayerSupport(required, available)` — both take const refs, throw on missing entry, return true on success
+- Completed `createInstance()` — validation layer block added: `enabledLayerCount`, `ppEnabledLayerNames`, `debug_messenger_create_info` local + `pNext = &debug_messenger_create_info`
+- Fixed lifetime bug: debug messenger create info stored as local variable before taking its address
+
+**Left off:**
+`createInstance()` is complete and reviewed. `makeDebugMessengerCreateInfo()` and `debugCallback()` not yet written.
+
+**Next session starts at:**
+Implement `makeDebugMessengerCreateInfo()` and `debugCallback()`, then `setupDebugMessenger()`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.

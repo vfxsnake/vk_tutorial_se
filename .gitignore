@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build-wls
 
 # VS Code specific
 .vscode/
@@ -23,6 +24,7 @@ build/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+session_log.md
 
 # Claude files
 CLAUDE.md
