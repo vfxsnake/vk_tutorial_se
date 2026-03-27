@@ -55,7 +55,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tinyobjloader)
 
 # ── Executable ────────────────────────────────────────────────────────────────
-add_executable(VulkanTutorial src/main.cpp)
+add_executable(VulkanTutorial src/main.cpp src/core/VulkanContext.cpp)
 
 target_include_directories(VulkanTutorial PRIVATE
     ${stb_SOURCE_DIR}

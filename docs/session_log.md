@@ -203,3 +203,25 @@ Implement `makeDebugMessengerCreateInfo()` and `debugCallback()`, then `setupDeb
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 10 — 2026-03-27
+
+**Covered:**
+- Implemented `makeDebugMessengerCreateInfo()` — severity/type flags, `pfnUserCallback = debugCallback`
+- Implemented `debugCallback()` — using `vk::` types in signature (valid with modern Vulkan-Hpp), `VKAPI_ATTR`/`VKAPI_CALL` macros, `vk::False` return
+- Discussed `VKAPI_ATTR`/`VKAPI_CALL` — calling convention macros (not type-related), expand to `__stdcall` on Windows
+- Discussed `VkXxx` vs `vk::Xxx` types — same values, different C++ types (plain enum vs enum class); mixing causes comparison errors
+- Added `VulkanContext.cpp` to `CMakeLists.txt`
+- Commented out `createSurface`, `pickPhysicalDevice`, `createLogicalDevice` calls in constructor (not yet implemented)
+- Successful build: `cmake --build build-wsl` linked cleanly
+
+**Left off:**
+`makeDebugMessengerCreateInfo()` and `debugCallback()` complete and building. `setupDebugMessenger()` not yet written.
+
+**Next session starts at:**
+Implement `setupDebugMessenger()` — call `makeDebugMessengerCreateInfo()`, create `debugMessenger_` RAII handle from it.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.

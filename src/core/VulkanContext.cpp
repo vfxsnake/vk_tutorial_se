@@ -126,3 +126,44 @@ bool VulkanContext::checkValidationLayersSupport(
     return true;
     
 }
+
+vk::DebugUtilsMessengerCreateInfoEXT VulkanContext::makeDebugMessengerCreateInfo()
+{
+    vk::DebugUtilsMessageSeverityFlagsEXT  severity_flags(
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | 
+        vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
+    );
+
+    vk::DebugUtilsMessageTypeFlagsEXT message_type_flags(
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+        vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
+        vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
+    );
+
+    vk::DebugUtilsMessengerCreateInfoEXT debug_messenger_create_info{
+        .messageSeverity = severity_flags,
+        .messageType = message_type_flags,
+        .pfnUserCallback = debugCallback
+    };
+
+    return debug_messenger_create_info;
+}
+
+ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
+    vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    vk::DebugUtilsMessageTypeFlagsEXT  message_type,
+    const vk::DebugUtilsMessengerCallbackDataEXT* callback_data,
+    void* user_data
+)
+{
+    if (
+        message_severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError || 
+        message_severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
+    )
+
+    {
+        std::cerr << "validation layer: type " <<  vk::to_string(message_type) << "msg: " << callback_data->pMessage << "\n";
+    }
+
+    return vk::False;
+}

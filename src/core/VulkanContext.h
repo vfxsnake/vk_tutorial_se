@@ -70,9 +70,9 @@ private:
     // Debug messenger
     static auto makeDebugMessengerCreateInfo() -> vk::DebugUtilsMessengerCreateInfoEXT;
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-        VkDebugUtilsMessageTypeFlagsEXT message_type,
-        const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+        vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+        vk::DebugUtilsMessageTypeFlagsEXT message_type,
+        const vk::DebugUtilsMessengerCallbackDataEXT* callback_data,
         void* user_data
     );
 
