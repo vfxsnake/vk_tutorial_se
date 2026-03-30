@@ -3,19 +3,22 @@
 #include <iostream>
 #include <cstring>
 
+
 const std::vector<const char*> VulkanContext::REQUIRED_DEVICE_EXTENSIONS = {vk::KHRSwapchainExtensionName};
 const std::vector<const char*> VulkanContext::VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
 
+
 VulkanContext::VulkanContext(GLFWwindow* window)
 {
-    createInstance(window);
+    createInstance();
     setupDebugMessenger();
     createSurface(window);
     pickPhysicalDevice();
     createLogicalDevice();
 }
 
-void VulkanContext::createInstance(GLFWwindow* window)
+
+void VulkanContext::createInstance()
 {
     constexpr vk::ApplicationInfo app_info{
         .pApplicationName = "Vulkan Engine",
@@ -29,7 +32,7 @@ void VulkanContext::createInstance(GLFWwindow* window)
     const std::vector<const char*> required_extensions = getRequiredInstanceExtensions();  
     std::vector<vk::ExtensionProperties> extension_properties = context_.enumerateInstanceExtensionProperties();
 
-     std::vector<vk::LayerProperties> layer_properties = context_.enumerateInstanceLayerProperties();
+    std::vector<vk::LayerProperties> layer_properties = context_.enumerateInstanceLayerProperties();
 
     // checking extensions and validation layers support
     checkExtensionSupport(required_extensions, extension_properties);
@@ -57,6 +60,7 @@ void VulkanContext::createInstance(GLFWwindow* window)
     
 }
 
+
 std::vector<const char*> VulkanContext::getRequiredInstanceExtensions()
 {
     uint32_t extension_count = 0;
@@ -71,6 +75,7 @@ std::vector<const char*> VulkanContext::getRequiredInstanceExtensions()
     
     return extensions;
 }
+
 
 bool VulkanContext::checkExtensionSupport(
     const std::vector<const char*>& required_extensions, 
@@ -98,6 +103,7 @@ bool VulkanContext::checkExtensionSupport(
 
     return true;
 }
+
 
 bool VulkanContext::checkValidationLayersSupport(
     const std::vector<const char*>& required_layers, 
@@ -127,6 +133,7 @@ bool VulkanContext::checkValidationLayersSupport(
     
 }
 
+
 vk::DebugUtilsMessengerCreateInfoEXT VulkanContext::makeDebugMessengerCreateInfo()
 {
     vk::DebugUtilsMessageSeverityFlagsEXT  severity_flags(
@@ -149,7 +156,8 @@ vk::DebugUtilsMessengerCreateInfoEXT VulkanContext::makeDebugMessengerCreateInfo
     return debug_messenger_create_info;
 }
 
- VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
+
+VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
     vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
     vk::DebugUtilsMessageTypeFlagsEXT  message_type,
     const vk::DebugUtilsMessengerCallbackDataEXT* callback_data,
@@ -160,10 +168,18 @@ vk::DebugUtilsMessengerCreateInfoEXT VulkanContext::makeDebugMessengerCreateInfo
         message_severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError || 
         message_severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
     )
-
     {
-        std::cerr << "validation layer: type " <<  vk::to_string(message_type) << "msg: " << callback_data->pMessage << "\n";
+        std::cerr << "validation layer: type " <<  vk::to_string(message_type) << " msg: " << callback_data->pMessage << "\n";
     }
 
     return vk::False;
+}
+
+void VulkanContext::setupDebugMessenger()
+{
+    if constexpr (ENABLE_VALIDATION_LAYERS)
+    {
+        vk::DebugUtilsMessengerCreateInfoEXT debug_messenger_create_info = makeDebugMessengerCreateInfo();   
+        debugMessenger_ = instance_.createDebugUtilsMessengerEXT(debug_messenger_create_info);
+    }
 }

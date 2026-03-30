@@ -45,7 +45,7 @@ public:
     uint32_t getQueueFamilyIndex() const;
 
 private:
-    void createInstance(GLFWwindow* window);
+    void createInstance();
     void setupDebugMessenger();
     void createSurface(GLFWwindow* window);
     void pickPhysicalDevice();
