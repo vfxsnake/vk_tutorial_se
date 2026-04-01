@@ -14,7 +14,7 @@ VulkanContext::VulkanContext(GLFWwindow* window)
     setupDebugMessenger();
     createSurface(window);
     pickPhysicalDevice();
-    createLogicalDevice();
+    // createLogicalDevice();
 }
 
 
@@ -175,6 +175,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(
     return vk::False;
 }
 
+
 void VulkanContext::setupDebugMessenger()
 {
     if constexpr (ENABLE_VALIDATION_LAYERS)
@@ -182,4 +183,100 @@ void VulkanContext::setupDebugMessenger()
         vk::DebugUtilsMessengerCreateInfoEXT debug_messenger_create_info = makeDebugMessengerCreateInfo();   
         debugMessenger_ = instance_.createDebugUtilsMessengerEXT(debug_messenger_create_info);
     }
+}
+
+
+void VulkanContext::createSurface(GLFWwindow* window)
+{
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    if (
+        glfwCreateWindowSurface(
+            *instance_, // dereference RAII wrapper to get the underlying VkInstance.
+            window, 
+            nullptr, 
+            &surface // output parameter — GLFW writes the created surface handle here.
+        ) != VK_SUCCESS
+    )
+    {
+        throw std::runtime_error("failed to create window surface");
+    }
+
+    surface_ = vk::raii::SurfaceKHR(instance_, surface);
+}
+
+
+bool VulkanContext::checkDeviceExtensionSupport(const vk::raii::PhysicalDevice& physical_device) const
+{
+    std::vector<vk::ExtensionProperties> available_device_extensions = physical_device.enumerateDeviceExtensionProperties();
+
+    for (auto required_extension : REQUIRED_DEVICE_EXTENSIONS)
+    {
+        bool required_extension_found = false;
+        for (auto available_extension : available_device_extensions)
+        {
+            if (strcmp(available_extension.extensionName, required_extension) == 0)
+            {
+                required_extension_found = true;
+                break;
+            }
+        }
+        if (!required_extension_found)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+std::optional<uint32_t> VulkanContext::findQueueFamily(const vk::raii::PhysicalDevice& physical_device) const
+{
+    std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
+
+    for (uint32_t i = 0; i < queue_families.size(); i++ )
+    {
+        if (!!(queue_families[i].queueFlags & vk::QueueFlagBits::eGraphics) && physical_device.getSurfaceSupportKHR(i, *surface_))
+        {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+bool VulkanContext::isDeviceSuitable(const vk::raii::PhysicalDevice& physical_device) const
+{
+    if (!(physical_device.getProperties().apiVersion >= vk::ApiVersion14)) return false;
+
+    if (!findQueueFamily(physical_device)) return false;
+
+    if (!checkDeviceExtensionSupport(physical_device)) return false;
+    
+    // checking for devise support for required features
+    auto features = physical_device.template getFeatures2< vk::PhysicalDeviceFeatures2, 
+                                                           vk::PhysicalDeviceVulkan13Features, 
+                                                           vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT >();
+
+    bool supports_required_features = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                                      features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+    
+    if (!supports_required_features) return false;
+
+    return true;                      
+}
+
+
+void VulkanContext::pickPhysicalDevice()
+{
+    std::vector<vk::raii::PhysicalDevice> physical_devices = instance_.enumeratePhysicalDevices();
+    for (auto& device : physical_devices)
+    {
+        if (isDeviceSuitable(device))
+        {
+            physicalDevice_ = device;
+            std::cout << "Device found: " << physicalDevice_.getProperties().deviceName << "\n";
+            return;
+        }
+    }
+
+    throw std::runtime_error("failed to find a suitable GPU");
 }

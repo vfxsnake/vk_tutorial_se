@@ -4,6 +4,8 @@
 
 ## Session 1 — 2026-03-16
 
+**Duration:** unknown
+
 **Covered:**
 - Read and clarified all ambiguities in `CLAUDE.md`
 - Agreed on workflow: Markdown → Architecture discussion → Implementation plan → Learning plan → Study → Implement → Code review → Verify
@@ -27,6 +29,8 @@ M1 — user reads `docs/vulkan_chapter_00-02_foundations.md` Parts 1 & 2, reads 
 
 ## Session 2 — 2026-03-17
 
+**Duration:** unknown
+
 **Covered:**
 - M1 theory session completed in full
 - Reviewed and corrected all 6 comprehension questions (Q3 inversion, Q4 portability/undefined behaviour, Q5 ImageView, Q6 RAII destruction order)
@@ -45,6 +49,8 @@ M2 — verify four prerequisites in x64 Native Tools Command Prompt: `echo %VULK
 ---
 
 ## Session 3 — 2026-03-18
+
+**Duration:** unknown
 
 **Covered:**
 - Verified all four Windows prerequisites: VULKAN_SDK, vkcube.exe, cmake 4.1.0-rc1, git 2.50.0
@@ -65,6 +71,8 @@ Chapter 03 — request the markdown for chapter 03, then proceed with the archit
 ---
 
 ## Session 4 — 2026-03-19
+
+**Duration:** unknown
 
 **Covered:**
 - Generated `docs/vulkan_chapter_03_drawing_a_triangle.md` (18 sub-pages fetched and synthesised)
@@ -96,6 +104,8 @@ M1 Theory — read §03.00.01 and §03.00.02 in `vulkan_chapter_03_drawing_a_tri
 
 ## Session 5 — 2026-03-20
 
+**Duration:** unknown
+
 **Covered:**
 - M1 Theory session completed in full (conversational one-question-at-a-time format)
 - Q1: vk::raii::Context vs vk::raii::Instance — bootstrapping role, dispatch tables, Maya MFn analogy discussed
@@ -121,6 +131,8 @@ M1 Implementation — create folder structure, write VulkanContext.h skeleton, t
 
 ## Session 6 — 2026-03-23
 
+**Duration:** unknown
+
 **Covered:**
 - Recapped M1 Implementation scope and agreed build order
 - Created full folder structure: `core/`, `renderer/`, `scene/`, `utils/`, `scene/.gitkeep`
@@ -143,6 +155,8 @@ Continue `VulkanContext.h` — add private helper methods (`isDeviceSuitable`, `
 
 ## Session 7 — 2026-03-24
 
+**Duration:** unknown
+
 **Covered:**
 - Reviewed completed `VulkanContext.h` — found and fixed four issues: `getQueue()` missing `const`, `makeDebugMessangerCreateInfo` typo, `findQueueFamily` changed from `uint32_t` to `std::optional<uint32_t>` (added `<optional>` include), `getSurface()` const confirmed correct
 - Discussed `std::optional<uint32_t>` semantics — `.has_value()`, `*opt` access, why it's cleaner than `UINT32_MAX` sentinel
@@ -160,6 +174,8 @@ Fix `instance_ = nullptr` in `VulkanContext.h`, then write `createInstance()` in
 ---
 
 ## Session 8 — 2026-03-25
+
+**Duration:** unknown
 
 **Covered:**
 - Set up WSL2 IntelliSense build: added `CMAKE_EXPORT_COMPILE_COMMANDS ON` to CMakeLists.txt, created `build-wls/` Ninja build alongside existing `build/` Windows MSVC build
@@ -186,6 +202,8 @@ Continue `createInstance()` — add validation layer support: call `checkValidat
 
 ## Session 9 — 2026-03-26
 
+**Duration:** unknown
+
 **Covered:**
 - Refactored inline extension logic into `getRequiredInstanceExtensions()` — GLFW extensions + `vk::EXTDebugUtilsExtensionName` when validation enabled
 - Discussed why `static` and explicit return type (not `auto`) are used in `.cpp` definitions
@@ -208,6 +226,8 @@ Implement `makeDebugMessengerCreateInfo()` and `debugCallback()`, then `setupDeb
 
 ## Session 10 — 2026-03-27
 
+**Duration:** unknown
+
 **Covered:**
 - Implemented `makeDebugMessengerCreateInfo()` — severity/type flags, `pfnUserCallback = debugCallback`
 - Implemented `debugCallback()` — using `vk::` types in signature (valid with modern Vulkan-Hpp), `VKAPI_ATTR`/`VKAPI_CALL` macros, `vk::False` return
@@ -222,6 +242,56 @@ Implement `makeDebugMessengerCreateInfo()` and `debugCallback()`, then `setupDeb
 
 **Next session starts at:**
 Implement `setupDebugMessenger()` — call `makeDebugMessengerCreateInfo()`, create `debugMessenger_` RAII handle from it.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 11 — 2026-03-30
+
+
+**Duration:** unknown
+
+**Covered:**
+- Implemented and reviewed `setupDebugMessenger()` — `if constexpr (ENABLE_VALIDATION_LAYERS)` guard, `makeDebugMessengerCreateInfo()` + `instance_.createDebugUtilsMessengerEXT()`
+- Discussed `if constexpr` vs regular `if` for compile-time constants — dead branch not compiled with `if constexpr`; early-return pattern does not work with `if constexpr`
+- Fixed `createInstance()` — removed unused `GLFWwindow* window` parameter from signature (header + cpp)
+- Implemented and reviewed `createSurface()` — `VK_NULL_HANDLE` init, `glfwCreateWindowSurface(*instance_, ...)`, `VK_SUCCESS` check, `vk::raii::SurfaceKHR(instance_, surface)` wrap
+- Implemented and reviewed `checkDeviceExtensionSupport()` — fixed three issues: wrong extensions source (`getRequiredInstanceExtensions` → `REQUIRED_DEVICE_EXTENSIONS`), wrong device queried (`physicalDevice_` → `physical_device` param), `strcasecmp` → `strcmp`
+- Build and test passed after `setupDebugMessenger()` and after `createSurface()`
+
+**Left off:**
+`checkDeviceExtensionSupport()` complete and reviewed. `findQueueFamily()` not yet written.
+
+**Next session starts at:**
+Implement `findQueueFamily()` — enumerate queue families on the physical device, find one that supports both `eGraphics` and present to `surface_`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 12 — 2026-03-31
+
+**Start time:** 07:19 EDT
+**End time:** 09:13 EDT
+**Duration:** 1 hour 54 minutes
+
+**Covered:**
+- Discussed `!!` (bool coercion) and `&` (bitwise AND) operators used in queue flag checks
+- Implemented `findQueueFamily()` — iterates queue families, checks `eGraphics` bit + `getSurfaceSupportKHR`, returns `std::optional<uint32_t>`
+- Discussed operator precedence bug (`!x >= y` vs `!(x >= y)`)
+- Implemented `isDeviceSuitable()` — short-circuit checks: API version ≥ 1.4, queue family, device extensions, `dynamicRendering` + `extendedDynamicState` features via `getFeatures2` struct chain
+- Explained `.template` disambiguation keyword in C++
+- Implemented `pickPhysicalDevice()` — enumerates devices, stores first suitable one, throws if none found
+- Added `std::cout` GPU name print via `getProperties().deviceName`
+
+**Left off:**
+`pickPhysicalDevice()` complete. `createLogicalDevice()` not yet written.
+
+**Next session starts at:**
+Implement `createLogicalDevice()` — feature chain (`PhysicalDeviceFeatures2` + `Vulkan13Features` + `ExtendedDynamicStateFeaturesEXT`), single `DeviceQueueCreateInfo`, retrieve queue via `device_.getQueue(queueFamilyIndex_, 0)`.
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
