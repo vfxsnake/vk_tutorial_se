@@ -38,9 +38,9 @@ public:
     VulkanContext& operator=(VulkanContext&&) = delete;
 
     // Accessors methods
-    auto getDevice() const -> const vk::raii::Device&;
+    auto getLogicalDevice() const -> const vk::raii::Device&; // retruns the logical device.
     auto getPhysicalDevice() const -> const vk::raii::PhysicalDevice&;
-    auto getQueue() const -> const vk::raii::Queue&;
+    auto getQueue() -> vk::raii::Queue&; // this method wont be constat as we plan to edit the queue with submit call later
     auto getSurface() const -> const vk::raii::SurfaceKHR&;
     uint32_t getQueueFamilyIndex() const;
 
@@ -94,7 +94,7 @@ private:
     vk::raii::DebugUtilsMessengerEXT debugMessenger_ = nullptr;
     vk::raii::SurfaceKHR surface_ = nullptr;
     vk::raii::PhysicalDevice physicalDevice_ = nullptr;
-    vk::raii::Device device_ = nullptr;
+    vk::raii::Device logicalDevice_ = nullptr;
     vk::raii::Queue graphicsQueue_ = nullptr;
     uint32_t queueFamilyIndex_ = 0;
 

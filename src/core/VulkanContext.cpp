@@ -14,7 +14,7 @@ VulkanContext::VulkanContext(GLFWwindow* window)
     setupDebugMessenger();
     createSurface(window);
     pickPhysicalDevice();
-    // createLogicalDevice();
+    createLogicalDevice();
 }
 
 
@@ -273,10 +273,72 @@ void VulkanContext::pickPhysicalDevice()
         if (isDeviceSuitable(device))
         {
             physicalDevice_ = device;
-            std::cout << "Device found: " << physicalDevice_.getProperties().deviceName << "\n";
+            queueFamilyIndex_ = *findQueueFamily(device);
+            std::cout << "Device found: " << physicalDevice_.getProperties().deviceName << " index: " << queueFamilyIndex_ << "\n";
             return;
         }
     }
 
     throw std::runtime_error("failed to find a suitable GPU");
 }
+
+void VulkanContext::createLogicalDevice()
+{
+    // query for Vulkan 1.4 features
+    vk::StructureChain<
+                        vk::PhysicalDeviceFeatures2, 
+                        vk::PhysicalDeviceVulkan13Features, 
+                        vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+                    > feature_chain = {
+		    {},                                   // vk::PhysicalDeviceFeatures2
+		    {.dynamicRendering = true},           // vk::PhysicalDeviceVulkan13Features
+		    {.extendedDynamicState = true}        // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+		};
+    
+    float queue_priority = 1.0f;
+    vk::DeviceQueueCreateInfo logical_device_queue_create_info{
+        .queueFamilyIndex = queueFamilyIndex_,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_priority
+    };
+
+    vk::DeviceCreateInfo logical_device_create_info{
+        .pNext = &feature_chain.get<vk::PhysicalDeviceFeatures2>(),
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &logical_device_queue_create_info,
+        .enabledExtensionCount = static_cast<uint32_t>(REQUIRED_DEVICE_EXTENSIONS.size()),
+        .ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSIONS.data()
+    };
+
+    logicalDevice_ = vk::raii::Device(physicalDevice_, logical_device_create_info);
+    graphicsQueue_ = vk::raii::Queue(logicalDevice_, queueFamilyIndex_, 0);
+}
+
+
+// Accessor functions
+const vk::raii::Device& VulkanContext::getLogicalDevice() const
+{
+    return logicalDevice_;
+} 
+
+
+const vk::raii::PhysicalDevice& VulkanContext::getPhysicalDevice() const
+{
+    return physicalDevice_;
+}
+
+vk::raii::Queue& VulkanContext::getQueue()
+{
+    return graphicsQueue_;
+}
+
+const vk::raii::SurfaceKHR& VulkanContext::getSurface() const
+{
+    return surface_;
+}
+
+uint32_t VulkanContext::getQueueFamilyIndex() const
+{
+    return queueFamilyIndex_;
+}
+

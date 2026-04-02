@@ -295,3 +295,61 @@ Implement `createLogicalDevice()` — feature chain (`PhysicalDeviceFeatures2` +
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 14 — 2026-04-02
+
+**Start time:** 07:29 EDT
+**End time:** 09:22 EDT
+**Duration:** 1 hour 53 minutes
+
+**Covered:**
+- Discussed move semantics for `SwapChain` vs `VulkanContext` — concluded move can be left defaulted on `SwapChain` because no other object stores a persistent `const SwapChain&` reference; `unique_ptr` ownership in `Application` is sufficient
+- Discussed `KHR` suffix — Khronos extension naming convention explained
+- Wrote `SwapChain.h` — constructor, deleted copy semantics, all public/private methods, member variables
+- Fixed two issues in header: wrong return type on `chooseExtent` (`PresentModeKHR` → `Extent2D`), `u_int32_t` → `uint32_t`
+- Discussed member initialiser list vs assignment in constructor body — references must use initialiser list, value types benefit from it too
+- Started `SwapChain.cpp` — includes, constructor (member initialiser list + `create()`/`createImageViews()` calls)
+- Discussed Law of Demeter and chained accessor calls — concluded Option A (chain through context accessors) is correct for this stage
+- Brief discussion on production engine abstraction layers (split Instance/PhysicalDevice/Device/Surface classes)
+- Wrote the three surface queries in `create()`: `getSurfaceCapabilitiesKHR`, `getSurfaceFormatsKHR`, `getSurfacePresentModesKHR`
+
+**Left off:**
+`create()` has the three surface queries written. The four `choose*` calls and `SwapchainCreateInfoKHR` not yet written.
+
+**Next session starts at:**
+Continue `create()` — call the four chooser helpers (`chooseFormat`, `choosePresentMode`, `chooseExtent`, `chooseImageCount`), then build `vk::SwapchainCreateInfoKHR` and create `swapChain_`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 13 — 2026-04-01
+
+**Start time:** 07:22 EDT
+**End time:** 09:28 EDT
+**Duration:** 2 hours 6 minutes
+
+**Covered:**
+- Implemented `createLogicalDevice()` — `vk::StructureChain` feature chain, `DeviceQueueCreateInfo`, `DeviceCreateInfo`, created `logicalDevice_` and retrieved `graphicsQueue_`
+- Discussed `queueFamilyIndex_` not being set in `pickPhysicalDevice()` — fixed by storing `*findQueueFamily(device)` there
+- Discussed double-call to `findQueueFamily()` — decided acceptable at startup, not a runtime performance concern
+- Discussed `vk::StructureChain` and why `PhysicalDeviceVulkan13Features` (not `Vulkan14Features`) is used for `dynamicRendering`
+- Discussed `PhysicalDeviceFeatures2` — the `2` suffix explained (pNext chain support added in revision)
+- Renamed `device_` → `logicalDevice_` throughout header and cpp
+- Implemented all accessor functions: `getLogicalDevice()`, `getPhysicalDevice()`, `getQueue()` (non-const), `getSurface()`, `getQueueFamilyIndex()`
+- Fixed `graphics_queue_` naming inconsistency → `graphicsQueue_` (trailing underscore camelCase style)
+- Fixed `getQueue()` — explained why `const` method cannot return non-const reference; made it non-const
+- Clean WSL2 compile, then Windows build and run — RTX 2070 found, queue index 0, window opens, OBS warning explained (harmless)
+- Knowledge check Q&A — all five questions answered correctly: const ref rationale, `vk::raii::Context` role, `if constexpr` vs `if`, `pNext` debug messenger gap, `findQueueFamily` dual check
+
+**Left off:**
+`VulkanContext` fully complete and verified on Windows. Knowledge check passed.
+
+**Next session starts at:**
+Begin `SwapChain` — write `SwapChain.h` skeleton per the implementation plan, then implement `SwapChain.cpp`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
