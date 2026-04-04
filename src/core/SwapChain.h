@@ -35,6 +35,7 @@ private:
     void createImageViews();
     void cleanup();
 
+    // swap chain create helper functions
     auto chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& formats) const -> vk::SurfaceFormatKHR;
     auto choosePresentMode(const std::vector<vk::PresentModeKHR>& modes) const -> vk::PresentModeKHR;
     auto chooseExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const -> vk::Extent2D;

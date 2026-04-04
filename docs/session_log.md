@@ -350,6 +350,32 @@ Implement `createImageViews()` — iterate `images_`, build `ImageViewCreateInfo
 
 ---
 
+## Session 16 — 2026-04-04
+
+**Start time:** 13:00 EDT
+**End time:** ~14:30 EDT
+
+**Covered:**
+- Implemented and reviewed `createImageViews()` — `ImageViewCreateInfo` built once outside loop, designated initialisers for `subresourceRange`, `const auto&` loop variable, `emplace_back` RAII construction
+- Discussed `.components` field — zero-init defaults to `eIdentity`, explicit form also fine
+- Implemented `cleanup()` — `imageViews_.clear()` before `swapChain_.clear()` (correct destruction order)
+- Implemented all accessors: `getFormat()`, `getExtent()`, `getImageCount()` (with `static_cast<uint32_t>`), `get()`, `getImageViews()`
+- Implemented `recreate()` — `cleanup()` → `create()` → `createImageViews()`
+- Added `SwapChain.cpp` to `CMakeLists.txt`
+- WSL2 build clean, Windows build clean (had to delete stale `build/` cache from WSL2 path mismatch)
+- Verification test passed: RTX 2070, format `B8G8R8A8Srgb`, extent `800x600`, 3 images
+
+**Left off:**
+`SwapChain` fully complete and verified on Windows. `SwapChain` milestone done.
+
+**Next session starts at:**
+Begin `GraphicsPipeline` — write `GraphicsPipeline.h` skeleton per the implementation plan.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
 ## Session 13 — 2026-04-01
 
 **Start time:** 07:22 EDT

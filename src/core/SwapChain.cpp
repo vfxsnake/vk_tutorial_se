@@ -38,6 +38,13 @@ void SwapChain::create()
     images_ = swapChain_.getImages();
 }
 
+void SwapChain::recreate()
+{
+    cleanup();
+    create();
+    createImageViews();
+}
+
 
 vk::Extent2D SwapChain::chooseExtent(const vk::SurfaceCapabilitiesKHR &capabilities) const
 {
@@ -116,3 +123,68 @@ vk::PresentModeKHR SwapChain::choosePresentMode(const std::vector<vk::PresentMod
 
     return vk::PresentModeKHR::eFifo;
 }
+
+
+void SwapChain::createImageViews()
+{
+    assert(imageViews_.empty());  // checks if imageViews_ is empty 
+
+    vk::ImageViewCreateInfo image_view_create_info{
+        .viewType = vk::ImageViewType::e2D,
+        .format = surfaceFormat_.format,
+        .components = {
+            .r = vk::ComponentSwizzle::eIdentity,
+            .g = vk::ComponentSwizzle::eIdentity,
+            .b = vk::ComponentSwizzle::eIdentity,
+            .a = vk::ComponentSwizzle::eIdentity,
+        },
+        .subresourceRange = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor, 
+            .baseMipLevel = 0, 
+            .levelCount = 1, 
+            .baseArrayLayer = 0 ,
+            .layerCount= 1
+        }
+    };
+
+    for (const auto& image : images_)
+    {
+        image_view_create_info.image = image;
+        imageViews_.emplace_back(context_.getLogicalDevice(), image_view_create_info);
+    }
+}
+
+
+void SwapChain::cleanup()
+{
+    imageViews_.clear();
+    swapChain_.clear();
+}
+
+
+vk::Format SwapChain::getFormat() const
+{
+    return surfaceFormat_.format;
+}
+
+
+vk::Extent2D SwapChain::getExtent() const
+{
+    return extent_;
+}
+
+
+uint32_t SwapChain::getImageCount() const
+{
+    return static_cast<uint32_t>(images_.size());
+}
+
+const vk::raii::SwapchainKHR& SwapChain::get() const 
+{
+    return swapChain_;
+}
+const std::vector<vk::raii::ImageView>& SwapChain::getImageViews() const
+{
+    return imageViews_;
+}
+
