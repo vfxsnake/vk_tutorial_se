@@ -326,6 +326,30 @@ Continue `create()` — call the four chooser helpers (`chooseFormat`, `choosePr
 
 ---
 
+## Session 15 — 2026-04-04
+
+**Start time:** 08:40 EDT
+**End time:** 11:45 EDT
+**Duration:** 3 hours 5 minutes
+
+**Covered:**
+- Renamed `chooseImageCount` → `getImageCountFrom` to avoid clash with public `getImageCount()` accessor
+- Renamed `chooseFormat` → `chooseSurfaceFormat` for clarity
+- Added session start logging as a permanent step 4 in `CLAUDE.md`
+- Implemented and reviewed `create()` — surface queries, four chooser calls, `SwapchainCreateInfoKHR`, `swapChain_` creation, `images_` retrieval
+- Implemented and reviewed `getImageCountFrom()` — `minImageCount + 1` with `maxImageCount` clamp, `target_image_count` naming
+- Implemented and reviewed `chooseSurfaceFormat()` — assert non-empty, iterate for `eB8G8R8A8Srgb` + `eSrgbNonlinear`, fallback to `formats[0]`
+- Implemented and reviewed `choosePresentMode()` — assert `eFifo` available, `any_of` check for `eMailbox`, fallback to `eFifo`
+- Discussed sentinel values (`UINT32_MAX`), `std::ranges::any_of` vs `all_of`, `u` suffix on integer literals, `eFifo` spec guarantee
+
+**Left off:**
+`create()` and all helpers complete and reviewed. `createImageViews()` not yet written.
+
+**Next session starts at:**
+Implement `createImageViews()` — iterate `images_`, build `ImageViewCreateInfo` per image (`viewType` 2D, `format` from `surfaceFormat_`, `subresourceRange` with `eColor` aspect, 1 mip level, 1 array layer), push into `imageViews_`.
+
+---
+
 ## Session 13 — 2026-04-01
 
 **Start time:** 07:22 EDT

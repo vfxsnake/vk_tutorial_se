@@ -24,7 +24,7 @@ public:
     // accessor functions
     vk::Format getFormat() const;
     vk::Extent2D getExtent() const;
-    uint32_t imageCount() const;
+    uint32_t getImageCount() const;
 
     auto get() const -> const vk::raii::SwapchainKHR&;
     auto getImageViews() const -> const std::vector<vk::raii::ImageView>&;
@@ -35,10 +35,10 @@ private:
     void createImageViews();
     void cleanup();
 
-    auto chooseFormat(const std::vector<vk::SurfaceFormatKHR>& formats) const -> vk::SurfaceFormatKHR;
+    auto chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& formats) const -> vk::SurfaceFormatKHR;
     auto choosePresentMode(const std::vector<vk::PresentModeKHR>& modes) const -> vk::PresentModeKHR;
     auto chooseExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const -> vk::Extent2D;
-    uint32_t chooseImageCount(const vk::SurfaceCapabilitiesKHR& capabilities) const;
+    uint32_t getImageCountFrom(const vk::SurfaceCapabilitiesKHR& capabilities) const;
 
     // private member variables
     const VulkanContext& context_;
