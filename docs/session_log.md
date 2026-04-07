@@ -353,7 +353,8 @@ Implement `createImageViews()` — iterate `images_`, build `ImageViewCreateInfo
 ## Session 16 — 2026-04-04
 
 **Start time:** 13:00 EDT
-**End time:** ~14:30 EDT
+**End time:** 14:30 EDT
+**Duration:** 1 hour 30 minutes
 
 **Covered:**
 - Implemented and reviewed `createImageViews()` — `ImageViewCreateInfo` built once outside loop, designated initialisers for `subresourceRange`, `const auto&` loop variable, `emplace_back` RAII construction
@@ -370,6 +371,32 @@ Implement `createImageViews()` — iterate `images_`, build `ImageViewCreateInfo
 
 **Next session starts at:**
 Begin `GraphicsPipeline` — write `GraphicsPipeline.h` skeleton per the implementation plan.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 17 — 2026-04-07
+
+**Start time:** 07:07 EDT
+**End time:** 09:07 EDT
+**Duration:** 2 hours 0 minutes
+
+**Covered:**
+- Wrote `src/renderer/GraphicsPipeline.h` — constructor, non-copyable, `record()`, `getPipeline()`, all private methods, `transitionImageLayout` static helper, member variables
+- Fixed file location (was incorrectly placed in `src/core/`, moved to `src/renderer/`)
+- Implemented `src/utils/FileUtils.h` — `readSpirv()` returning `vector<uint32_t>`, discussed `ate`, `size_t`, `reinterpret_cast<char*>`, byte count vs element count
+- Discussed why `uint32_t` vector is preferred over `vector<char>` for SPIR-V (`pCode` expects `const uint32_t*`)
+- Renamed `getDevice()` → `getLogicalDevice()` throughout `VulkanContext.h`, `VulkanContext.cpp`, `SwapChain.cpp`
+- Started `GraphicsPipeline.cpp` — includes, constructor, `createPipelineLayout()` (empty layout)
+- Discussed why `PipelineLayoutCreateInfo` is empty for now (no descriptors, no push constants until later chapters)
+
+**Left off:**
+`createPipelineLayout()` complete. `createPipeline()` skeleton started — shader module calls written, `createShaderModule()` not yet implemented.
+
+**Next session starts at:**
+Implement `createShaderModule()` — calls `readSpirv()`, builds `ShaderModuleCreateInfo` with `pCode` and `codeSize`, returns `vk::raii::ShaderModule`. Then continue `createPipeline()` with all fixed-function state structs.
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
