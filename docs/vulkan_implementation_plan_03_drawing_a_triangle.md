@@ -379,7 +379,7 @@ private:
   - `vk::PipelineInputAssemblyStateCreateInfo` — `eTriangleList`, no restart
   - `vk::PipelineViewportStateCreateInfo` — 1 viewport, 1 scissor (both dynamic)
   - `vk::PipelineDynamicStateCreateInfo` — `eViewport`, `eScissor`
-  - `vk::PipelineRasterizationStateCreateInfo` — `eFill`, back-face cull, CCW front face, no depth bias
+  - `vk::PipelineRasterizationStateCreateInfo` — `eFill`, back-face cull, CW front face (`eClockwise`), no depth bias
   - `vk::PipelineMultisampleStateCreateInfo` — `e1`, disabled
   - `vk::PipelineColorBlendAttachmentState` — blend disabled, all channels written
   - `vk::PipelineColorBlendStateCreateInfo` — references single attachment, no logic op
@@ -396,7 +396,7 @@ private:
   8. `commandBuffer.endRendering()`
   9. `transitionImageLayout` from `eColorAttachmentOptimal`→`ePresentSrcKHR`
 - `transitionImageLayout`: uses `vk::ImageMemoryBarrier2` + `vk::DependencyInfo` + `commandBuffer.pipelineBarrier2()` (synchronization2 path).
-- Shader path convention: `shaders/triangle.vert.spv` and `shaders/triangle.frag.spv` (relative to executable).
+- Shader path convention: single `shaders/triangle.spv` containing both entry points (relative to executable). `createShaderModule()` is called once; both `PipelineShaderStageCreateInfo` structs reference the same module with `pName = "vertMain"` and `pName = "fragMain"` respectively.
 
 ---
 
@@ -504,21 +504,16 @@ Two entry points in a single file.
 **Compilation (add to CMakeLists.txt):**
 ```cmake
 add_custom_command(
-    OUTPUT  ${CMAKE_BINARY_DIR}/shaders/triangle.vert.spv
-            ${CMAKE_BINARY_DIR}/shaders/triangle.frag.spv
+    OUTPUT  ${CMAKE_BINARY_DIR}/shaders/triangle.spv
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/shaders
     COMMAND $ENV{VULKAN_SDK}/Bin/slangc.exe
             ${CMAKE_SOURCE_DIR}/shaders/triangle.slang
-            -entry vertexMain   -stage vertex   -o ${CMAKE_BINARY_DIR}/shaders/triangle.vert.spv
-    COMMAND $ENV{VULKAN_SDK}/Bin/slangc.exe
-            ${CMAKE_SOURCE_DIR}/shaders/triangle.slang
-            -entry fragmentMain -stage fragment -o ${CMAKE_BINARY_DIR}/shaders/triangle.frag.spv
+            -o ${CMAKE_BINARY_DIR}/shaders/triangle.spv
     DEPENDS ${CMAKE_SOURCE_DIR}/shaders/triangle.slang
     COMMENT "Compiling triangle shaders"
 )
 add_custom_target(Shaders DEPENDS
-    ${CMAKE_BINARY_DIR}/shaders/triangle.vert.spv
-    ${CMAKE_BINARY_DIR}/shaders/triangle.frag.spv
+    ${CMAKE_BINARY_DIR}/shaders/triangle.spv
 )
 add_dependencies(VulkanTutorial Shaders)
 ```

@@ -403,6 +403,32 @@ Implement `createShaderModule()` — calls `readSpirv()`, builds `ShaderModuleCr
 
 ---
 
+## Session 18 — 2026-04-08
+
+**Start time:** 07:04 EDT
+**End time:** 09:42 EDT
+**Duration:** 2 hours 38 minutes
+
+**Covered:**
+- Fixed `codeSize` bug in `createShaderModule()` — was passing element count, corrected to `size() * sizeof(uint32_t)`
+- Decided to use a single `shaders/triangle.spv` (both entry points) instead of two separate SPV files — updated implementation plan and CMake block accordingly
+- Implemented `createPipeline()` in full: shader stages, all fixed-function state structs, `vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo>`, pipeline creation
+- Discussed `PipelineVertexInputStateCreateInfo`, `PipelineInputAssemblyStateCreateInfo`, topology types, `PipelineDynamicStateCreateInfo`, MSAA, color blending, transparency/draw order, `vk::StructureChain` pNext linking
+- Corrected winding order in implementation plan: `eClockwise` (not CCW) matches the hardcoded triangle vertex layout
+- Added `src/renderer/GraphicsPipeline.cpp` to CMakeLists.txt and added `${CMAKE_SOURCE_DIR}/src` to include directories
+- Clean WSL2 build confirmed
+
+**Left off:**
+`createPipeline()` complete and building. `shaders/triangle.slang` not yet written.
+
+**Next session starts at:**
+Write `shaders/triangle.slang` — two entry points (`vertMain`, `fragMain`), hardcoded positions and colors, then add the CMake shader compilation block and do a full end-to-end build.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
 ## Session 13 — 2026-04-01
 
 **Start time:** 07:22 EDT
