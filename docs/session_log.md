@@ -429,6 +429,12 @@ Write `shaders/triangle.slang` — two entry points (`vertMain`, `fragMain`), ha
 
 ---
 
+## Session 19 — 2026-04-09
+
+**Start time:** 07:10 EDT
+
+---
+
 ## Session 13 — 2026-04-01
 
 **Start time:** 07:22 EDT

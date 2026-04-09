@@ -72,7 +72,31 @@ target_link_libraries(VulkanTutorial PRIVATE
 
 # Vulkan-Hpp RAII and C++20 modules flags
 target_compile_definitions(VulkanTutorial PRIVATE
-    VULKAN_HPP_NO_CONSTRUCTORS      # use designated initializers
+    VULKAN_HPP_NO_CONSTRUCTORS      # use designated initializers {.pValue = ..., .aVariable = ...}
     GLM_FORCE_RADIANS
     GLM_FORCE_DEPTH_ZERO_TO_ONE
 )
+
+# Shaders block
+if(WIN32)
+    set(SLANG_C $ENV{VULKAN_SDK}/Bin/slangc.exe)
+else()
+    set(SLANG_C $ENV{VULKAN_SDK}/bin/slangc)
+endif()
+
+set(SHADERS_DIR ${CMAKE_SOURCE_DIR}/shaders)
+set(SHADER_SOURCES ${SHADERS_DIR}/triangle.slang)
+set(ENTRY_POINTS -entry vertMain -entry fragMain)
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/shaders/triangle.spv 
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/shaders
+    COMMAND ${SLANG_C} ${SHADER_SOURCES} -target spirv -profile spirv_1_4+spvRayQueryKHR -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o ${CMAKE_BINARY_DIR}/shaders/triangle.spv 
+    WORKING_DIRECTORY ${SHADERS_DIR}
+    DEPENDS ${SHADERS_DIR} ${SHADER_SOURCES}
+    COMMENT "compiling slang shaders"
+    VERBATIM
+)
+
+add_custom_target(Shaders DEPENDS ${CMAKE_BINARY_DIR}/shaders/triangle.spv)
+add_dependencies(VulkanTutorial Shaders)
