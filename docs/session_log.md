@@ -298,6 +298,36 @@ Implement `createLogicalDevice()` — feature chain (`PhysicalDeviceFeatures2` +
 
 ---
 
+## Session 13 — 2026-04-01
+
+**Start time:** 07:22 EDT
+**End time:** 09:28 EDT
+**Duration:** 2 hours 6 minutes
+
+**Covered:**
+- Implemented `createLogicalDevice()` — `vk::StructureChain` feature chain, `DeviceQueueCreateInfo`, `DeviceCreateInfo`, created `logicalDevice_` and retrieved `graphicsQueue_`
+- Discussed `queueFamilyIndex_` not being set in `pickPhysicalDevice()` — fixed by storing `*findQueueFamily(device)` there
+- Discussed double-call to `findQueueFamily()` — decided acceptable at startup, not a runtime performance concern
+- Discussed `vk::StructureChain` and why `PhysicalDeviceVulkan13Features` (not `Vulkan14Features`) is used for `dynamicRendering`
+- Discussed `PhysicalDeviceFeatures2` — the `2` suffix explained (pNext chain support added in revision)
+- Renamed `device_` → `logicalDevice_` throughout header and cpp
+- Implemented all accessor functions: `getLogicalDevice()`, `getPhysicalDevice()`, `getQueue()` (non-const), `getSurface()`, `getQueueFamilyIndex()`
+- Fixed `graphics_queue_` naming inconsistency → `graphicsQueue_` (trailing underscore camelCase style)
+- Fixed `getQueue()` — explained why `const` method cannot return non-const reference; made it non-const
+- Clean WSL2 compile, then Windows build and run — RTX 2070 found, queue index 0, window opens, OBS warning explained (harmless)
+- Knowledge check Q&A — all five questions answered correctly: const ref rationale, `vk::raii::Context` role, `if constexpr` vs `if`, `pNext` debug messenger gap, `findQueueFamily` dual check
+
+**Left off:**
+`VulkanContext` fully complete and verified on Windows. Knowledge check passed.
+
+**Next session starts at:**
+Begin `SwapChain` — write `SwapChain.h` skeleton per the implementation plan, then implement `SwapChain.cpp`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
 ## Session 14 — 2026-04-02
 
 **Start time:** 07:29 EDT
@@ -432,33 +462,26 @@ Write `shaders/triangle.slang` — two entry points (`vertMain`, `fragMain`), ha
 ## Session 19 — 2026-04-09
 
 **Start time:** 07:10 EDT
-
----
-
-## Session 13 — 2026-04-01
-
-**Start time:** 07:22 EDT
-**End time:** 09:28 EDT
-**Duration:** 2 hours 6 minutes
+**End time:** 09:10 EDT
+**Duration:** 2 hours 0 minutes
 
 **Covered:**
-- Implemented `createLogicalDevice()` — `vk::StructureChain` feature chain, `DeviceQueueCreateInfo`, `DeviceCreateInfo`, created `logicalDevice_` and retrieved `graphicsQueue_`
-- Discussed `queueFamilyIndex_` not being set in `pickPhysicalDevice()` — fixed by storing `*findQueueFamily(device)` there
-- Discussed double-call to `findQueueFamily()` — decided acceptable at startup, not a runtime performance concern
-- Discussed `vk::StructureChain` and why `PhysicalDeviceVulkan13Features` (not `Vulkan14Features`) is used for `dynamicRendering`
-- Discussed `PhysicalDeviceFeatures2` — the `2` suffix explained (pNext chain support added in revision)
-- Renamed `device_` → `logicalDevice_` throughout header and cpp
-- Implemented all accessor functions: `getLogicalDevice()`, `getPhysicalDevice()`, `getQueue()` (non-const), `getSurface()`, `getQueueFamilyIndex()`
-- Fixed `graphics_queue_` naming inconsistency → `graphicsQueue_` (trailing underscore camelCase style)
-- Fixed `getQueue()` — explained why `const` method cannot return non-const reference; made it non-const
-- Clean WSL2 compile, then Windows build and run — RTX 2070 found, queue index 0, window opens, OBS warning explained (harmless)
-- Knowledge check Q&A — all five questions answered correctly: const ref rationale, `vk::raii::Context` role, `if constexpr` vs `if`, `pNext` debug messenger gap, `findQueueFamily` dual check
+- Wrote `shaders/triangle.slang` — two entry points (`vertMain`, `fragMain`), hardcoded positions and colors
+- Discussed Slang semantic bindings (`:` syntax, `SV_Position`, `SV_Target`, `SV_VertexID`), `[shader()]` attributes, interpolation across the triangle, `static` arrays
+- Added CMake shader compilation block — platform-aware `slangc` path (WIN32 vs Linux), `add_custom_command`, `add_custom_target`, `add_dependencies`
+- Implemented `getPipeline()` accessor
+- Rebuilt on Windows (deleted stale WSL2 `build/` cache, reconfigured with Visual Studio generator), shader compiled to `build/shaders/triangle.spv`, exe ran successfully
+- WSL2 run: validation error identified as Mesa/loader version mismatch (no Vulkan SDK installed on WSL2), not a code bug
+- Discussed image layout transitions — why they exist, `eUndefined→eColorAttachmentOptimal→ePresentSrcKHR`, synchronization2 barrier role
 
 **Left off:**
-`VulkanContext` fully complete and verified on Windows. Knowledge check passed.
+`GraphicsPipeline` has `getPipeline()` done. `transitionImageLayout()` and `record()` not yet written.
 
 **Next session starts at:**
-Begin `SwapChain` — write `SwapChain.h` skeleton per the implementation plan, then implement `SwapChain.cpp`.
+Implement `transitionImageLayout()` — `vk::ImageMemoryBarrier2` + `vk::DependencyInfo` + `pipelineBarrier2()`. Then implement `record()`.
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+

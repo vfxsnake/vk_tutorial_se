@@ -122,3 +122,10 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
     pipeline_ = vk::raii::Pipeline(context_.getLogicalDevice(), nullptr, pipeline_create_info_chain.get<vk::GraphicsPipelineCreateInfo>());
 
 } 
+
+
+const vk::raii::Pipeline& GraphicsPipeline::getPipeline() const
+{
+    return pipeline_;
+}
+
