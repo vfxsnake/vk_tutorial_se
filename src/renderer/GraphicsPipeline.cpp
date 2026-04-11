@@ -220,7 +220,7 @@ void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D ext
         vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f)
     );
     command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
-    command_buffer.draw(3, 1,0 ,0);
+    command_buffer.draw(3, 1,0 ,0);  // hard coded triangle: vertex number (3), instance cout /num of instances (1), first vertext at index (0) , triangle instances ids starts at (0)
     command_buffer.endRendering();
 
     // transition the swap chain image to ePresenter source 
