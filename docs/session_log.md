@@ -485,3 +485,35 @@ Implement `transitionImageLayout()` — `vk::ImageMemoryBarrier2` + `vk::Depende
 
 ---
 
+
+## Session 20 — 2026-04-10
+
+**Start time:** 07:31 EDT
+
+**End time:** 10:06 EDT
+**Duration:** 2 hours 35 minutes
+
+**Covered:**
+- Implemented `transitionImageLayout()` — `vk::ImageMemoryBarrier2` + `vk::DependencyInfo` + `pipelineBarrier2()`
+- Implemented `record()` — begin, two layout transitions, `RenderingAttachmentInfo`, `RenderingInfo`, `beginRendering`, `bindPipeline`, viewport/scissor, `draw(3,1,0,0)`, `endRendering`, end
+- Added `vk::Image image` parameter to `record()` (decided to pass image alongside image_view rather than derive it)
+- Fixed `ClearColorValue` initialization — `VULKAN_HPP_NO_CONSTRUCTORS` disables four-float constructor; used nested designated initializer with `std::array<float,4>{}` instead
+- Fixed `command_buffer.begin({})` nodiscard warning — now checks result and throws `std::runtime_error`
+- Discussed `std::array` aggregate initialization (`{}` not `()`)
+- Discussed `VULKAN_HPP_NO_CONSTRUCTORS` trade-off — disables convenience constructors but enables designated initializer syntax throughout
+- Clean WSL2 build confirmed
+
+**Left off:**
+`GraphicsPipeline` fully complete and building. `Renderer` not yet started.
+
+**Next session starts at:**
+Write `Renderer.h` skeleton per the implementation plan, then implement `Renderer.cpp`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 21 — 2026-04-11
+
+**Start time:** 07:23 EDT

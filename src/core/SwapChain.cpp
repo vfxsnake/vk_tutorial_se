@@ -179,12 +179,20 @@ uint32_t SwapChain::getImageCount() const
     return static_cast<uint32_t>(images_.size());
 }
 
+
 const vk::raii::SwapchainKHR& SwapChain::get() const 
 {
     return swapChain_;
 }
+
+
 const std::vector<vk::raii::ImageView>& SwapChain::getImageViews() const
 {
     return imageViews_;
 }
 
+
+const std::vector<vk::Image>& SwapChain::getImages() const
+{
+    return images_;
+}

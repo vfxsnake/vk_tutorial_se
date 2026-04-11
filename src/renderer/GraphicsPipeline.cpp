@@ -3,6 +3,7 @@
 #include "utils/FileUtils.h"
 
 #include <stdexcept>
+#include <array>
 
 
 GraphicsPipeline::GraphicsPipeline(const VulkanContext& context, vk::Format color_format) : context_(context)
@@ -129,3 +130,110 @@ const vk::raii::Pipeline& GraphicsPipeline::getPipeline() const
     return pipeline_;
 }
 
+
+void GraphicsPipeline::transitionImageLayout(
+        vk::CommandBuffer command_buffer,
+        vk::Image image,
+        vk::ImageLayout old_layout,
+        vk::ImageLayout new_layout,
+        vk::PipelineStageFlags2 source_stage_mask,
+        vk::AccessFlags2 source_access_mask,
+        vk::PipelineStageFlags2 destination_stage_mask,
+        vk::AccessFlags2 destination_access_mask
+    )
+{
+    vk::ImageMemoryBarrier2 barrier = {
+        .srcStageMask = source_stage_mask,
+        .srcAccessMask = source_access_mask,
+        .dstStageMask = destination_stage_mask,
+        .dstAccessMask = destination_access_mask,
+        .oldLayout = old_layout,
+        .newLayout = new_layout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image,
+        .subresourceRange = {
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+
+    };
+
+    vk::DependencyInfo dependency_info = {
+        .dependencyFlags = {},  // using designated initializer.
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier
+    };
+
+    command_buffer.pipelineBarrier2(dependency_info);
+}
+
+void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view)
+{
+    if (command_buffer.begin({}) != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("unable to clean and start the command buffer begin");
+    }
+
+    transitionImageLayout(
+        command_buffer,
+        image,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        {},
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite
+    );
+    
+    vk::ClearValue clear_value{
+        .color = { // vk::CleanColorValue struct. using the float initializer
+            .float32 = std::array<float,4>{0.0f, 0.0f, 0.0f, 1.0f}
+        }
+    };
+    
+    vk::RenderingAttachmentInfo attachment_info{
+        .imageView = image_view,
+        .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .clearValue = clear_value
+    };
+
+    vk::RenderingInfo rendering_info{
+        .renderArea = {
+            .offset = {0, 0}, 
+            .extent = extent
+        },
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachment_info
+    };
+
+    command_buffer.beginRendering(rendering_info);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
+    command_buffer.setViewport(
+        0, 
+        vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f)
+    );
+    command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+    command_buffer.draw(3, 1,0 ,0);
+    command_buffer.endRendering();
+
+    // transition the swap chain image to ePresenter source 
+    transitionImageLayout(
+        command_buffer,
+        image,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::PipelineStageFlagBits2::eBottomOfPipe,
+        {}
+    );
+
+    command_buffer.end();
+}

@@ -16,7 +16,7 @@ public:
     GraphicsPipeline(const GraphicsPipeline&) = delete;
     GraphicsPipeline& operator =(const GraphicsPipeline&) = delete;
 
-    void record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::ImageView image_view);
+    void record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view);
     auto getPipeline() const -> const vk::raii::Pipeline&;
 
 private:
@@ -31,10 +31,10 @@ private:
         vk::Image image,
         vk::ImageLayout old_layout,
         vk::ImageLayout new_layout,
-        vk::PipelineStageFlags2 source_stage,
-        vk::AccessFlags2 source_access,
-        vk::PipelineStageFlags2 destination_stage,
-        vk::AccessFlags2 destination_access
+        vk::PipelineStageFlags2 source_stage_mask,
+        vk::AccessFlags2 source_access_mask,
+        vk::PipelineStageFlags2 destination_stage_mask,
+        vk::AccessFlags2 destination_access_mask
     );
 
     // private member variables

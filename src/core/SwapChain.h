@@ -28,6 +28,7 @@ public:
 
     auto get() const -> const vk::raii::SwapchainKHR&;
     auto getImageViews() const -> const std::vector<vk::raii::ImageView>&;
+    auto getImages() const -> const std::vector<vk::Image>&;
 
 private:
     // private member functions
