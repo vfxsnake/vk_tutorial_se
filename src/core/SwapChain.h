@@ -27,6 +27,8 @@ public:
     uint32_t getImageCount() const;
 
     auto get() const -> const vk::raii::SwapchainKHR&;
+    auto getImage(uint32_t index) const -> const vk::Image&;
+    auto getImageView(uint32_t index) const ->const vk::raii::ImageView&;
     auto getImageViews() const -> const std::vector<vk::raii::ImageView>&;
     auto getImages() const -> const std::vector<vk::Image>&;
 

@@ -517,3 +517,79 @@ Write `Renderer.h` skeleton per the implementation plan, then implement `Rendere
 ## Session 21 — 2026-04-11
 
 **Start time:** 07:23 EDT
+**End time:** 08:51 EDT
+**Duration:** 1 hour 28 minutes
+
+**Covered:**
+- Added `getImages()` accessor to `SwapChain.h` and `SwapChain.cpp`
+- Wrote and finalised `FrameData.h` — four RAII handles, doc comments explaining ring buffer role
+- Wrote and finalised `Renderer.h` — fixed copy assignment `&` typo
+- Deep dive on `draw(vertexCount, instanceCount, firstVertex, firstInstance)` — all four arguments clarified with examples
+- Discussed how `draw()` becomes `drawIndexed()` in Chapter 08 when OBJ loading arrives
+- Started `Renderer.cpp` skeleton — includes, constructor, empty `createCommandPool()` and `createFrameData()` stubs
+
+**Left off:**
+`Renderer.cpp` skeleton started — constructor written, `createCommandPool()` and `createFrameData()` stubs empty.
+
+**Next session starts at:**
+Implement `createCommandPool()` and `createFrameData()` in `Renderer.cpp`, then implement `drawFrame()`.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 23 — 2026-04-12
+
+**Start time:** 17:54 EDT
+**End time:** 21:31 EDT
+**Duration:** 3 hours 37 minutes
+
+**Covered:**
+- Renamed `createFrameData()` → `initializeFrameData()` in header and cpp
+- Renamed `FrameData` → `RenderFrameSlot`, `FrameData.h` → `RenderFrameSlot.h`, `frames_` → `renderFrameSlots_` throughout
+- Added indexed accessors `getImage(uint32_t index)` and `getImageView(uint32_t index)` to `SwapChain` alongside existing vector accessors
+- Fixed `getImageView(index)` return type — `const vk::raii::ImageView&` not `const vk::ImageView&`
+- Discussed `acquireNextImageKHR` return values — `eErrorOutOfDateKHR` vs `eSuboptimalKHR` handling, `UINT64_MAX` timeout, `imageAvailableSemaphore_` as the wait semaphore
+- Implemented `drawFrame()` in full — fence wait, acquire, fence reset, buffer reset, record, submit, present
+- Fixed `return;` → `return false;` on out-of-date acquire path
+- Removed overly narrow `assert` on present error path, replaced with `throw`
+- Discussed `wait_destination_stage_mask` lifetime — made `static constexpr`
+- Removed `const` from `VulkanContext&` member and constructor parameter — required because `getQueue()` is non-const
+- Added `src/renderer/Renderer.cpp` to `CMakeLists.txt`
+- Clean WSL2 build confirmed
+
+**Left off:**
+`Renderer` fully complete and building. `Application` not yet started.
+
+**Next session starts at:**
+Write `Application.h` skeleton, then implement `Application.cpp`.
+
+**Open questions / notes:**
+- CMakeLists.txt `add_executable` still uses explicit file list — discussed switching to `GLOB_RECURSE` but deferred
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 22 — 2026-04-12
+
+**Start time:** 08:53 EDT
+**End time:** 10:02 EDT
+**Duration:** 1 hour 9 minutes
+
+**Covered:**
+- Implemented `createCommandPool()` — `eResetCommandBuffer` flag, `getQueueFamilyIndex()` accessor
+- Discussed why `eResetCommandBuffer` is needed (individual reset per frame vs full pool reset)
+- Implemented `createFrameData()` — range-for over `frames_` array, command buffer allocation, two semaphores, signalled fence
+- Discussed `std::array` vs `std::vector` iteration (array slots always exist, vector starts empty)
+- Discussed why `inFlightFence_` must start signalled (first frame deadlock if unsignalled)
+- Fixed `FrameData` member name alignment (`imageAvailable_` → `imageAvailableSemaphore_`, `renderFinished_` → `renderFinishedSemaphore_`)
+
+**Left off:**
+`createCommandPool()` and `createFrameData()` complete and reviewed. `drawFrame()` not yet started — stopped at the question about `acquireNextImage` return value.
+
+**Next session starts at:**
+Answer the `acquireNextImage` return value question (what it returns and which value needs special handling), then implement `drawFrame()` in full.
+
+**Open questions / notes:**
+- Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.

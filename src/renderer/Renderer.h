@@ -3,7 +3,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <array>
 
-#include "FrameData.h"
+#include "RenderFrameSlot.h"
 
 // Forward Declarations
 class VulkanContext;
@@ -16,7 +16,7 @@ class Renderer
 public:
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
-    Renderer(const VulkanContext& context);
+    Renderer(VulkanContext& context);
 
     // Non Copyable (removing copyable constructors)
     Renderer(const Renderer&) = delete;
@@ -26,12 +26,12 @@ public:
 
 private:
     void createCommandPool();
-    void createFrameData();
+    void initializeFrameData();
 
     // private member variables
-    const VulkanContext& context_;
+    VulkanContext& context_;
     vk::raii::CommandPool commandPool_ = nullptr;
-    std::array<FrameData, MAX_FRAMES_IN_FLIGHT> frames_;
+    std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
     uint32_t currentFrame_ = 0;
     
 };

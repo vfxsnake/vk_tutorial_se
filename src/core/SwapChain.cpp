@@ -196,3 +196,15 @@ const std::vector<vk::Image>& SwapChain::getImages() const
 {
     return images_;
 }
+
+
+const vk::Image& SwapChain::getImage(uint32_t index) const
+{
+    return images_[index];
+}
+
+
+const vk::raii::ImageView& SwapChain::getImageView(uint32_t index) const
+{
+    return imageViews_[index];
+}
