@@ -257,6 +257,7 @@ bool VulkanContext::isDeviceSuitable(const vk::raii::PhysicalDevice& physical_de
                                                            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT >();
 
     bool supports_required_features = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                                      features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
                                       features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
     
     if (!supports_required_features) return false;
@@ -290,9 +291,9 @@ void VulkanContext::createLogicalDevice()
                         vk::PhysicalDeviceVulkan13Features, 
                         vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
                     > feature_chain = {
-		    {},                                   // vk::PhysicalDeviceFeatures2
-		    {.dynamicRendering = true},           // vk::PhysicalDeviceVulkan13Features
-		    {.extendedDynamicState = true}        // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+		    {},                                                   // vk::PhysicalDeviceFeatures2
+		    {.synchronization2 = true, .dynamicRendering = true}, // vk::PhysicalDeviceVulkan13Features
+		    {.extendedDynamicState = true}                        // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
 		};
     
     float queue_priority = 1.0f;

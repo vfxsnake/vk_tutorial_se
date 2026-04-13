@@ -55,7 +55,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tinyobjloader)
 
 # ── Executable ────────────────────────────────────────────────────────────────
-add_executable(VulkanTutorial src/main.cpp src/core/VulkanContext.cpp src/core/SwapChain.cpp src/renderer/GraphicsPipeline.cpp src/renderer/Renderer.cpp)
+add_executable(VulkanTutorial
+    src/main.cpp
+    src/Application.cpp
+    src/core/VulkanContext.cpp
+    src/core/SwapChain.cpp
+    src/renderer/GraphicsPipeline.cpp
+    src/renderer/Renderer.cpp
+)
 
 target_include_directories(VulkanTutorial PRIVATE
     ${CMAKE_SOURCE_DIR}/src

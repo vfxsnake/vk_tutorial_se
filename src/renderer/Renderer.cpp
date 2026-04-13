@@ -115,11 +115,18 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         .pImageIndices = &image_index
     };
 
-    vk::Result presenter_result = context_.getQueue().presentKHR(present_info);
-    
-    if((presenter_result == vk::Result::eSuboptimalKHR) || (presenter_result == vk::Result::eErrorOutOfDateKHR ))
+    vk::Result presenter_result;
+    try
     {
-        swap_chain.recreate();
+        presenter_result = context_.getQueue().presentKHR(present_info);
+    }
+    catch (const vk::OutOfDateKHRError&)
+    {                                                                                                                                 
+        return false;
+    }
+    
+    if(presenter_result == vk::Result::eSuboptimalKHR)
+    {
         return false;
     }
     

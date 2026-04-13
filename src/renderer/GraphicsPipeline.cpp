@@ -173,7 +173,8 @@ void GraphicsPipeline::transitionImageLayout(
 
 void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view)
 {
-    if (command_buffer.begin({}) != vk::Result::eSuccess)
+    vk::CommandBufferBeginInfo command_buffer_beging_info{};
+    if (command_buffer.begin(&command_buffer_beging_info) != vk::Result::eSuccess)
     {
         throw std::runtime_error("unable to clean and start the command buffer begin");
     }

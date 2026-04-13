@@ -593,3 +593,32 @@ Answer the `acquireNextImage` return value question (what it returns and which v
 
 **Open questions / notes:**
 - Future: make `VulkanContext` window-agnostic — noted for "Building a Simple Engine" phase.
+
+---
+
+## Session 24 — 2026-04-13
+
+**Start time:** 07:13 EDT
+**End time:** 09:41 EDT
+**Duration:** 2 hours 28 minutes
+
+**Covered:**
+- Wrote `Application.h` — includes, forward declarations, constructor/destructor, `run()`, four private methods, static GLFW callback, constants, `unique_ptr` members in dependency order, `window_` and `framebufferResized_`
+- Wrote `Application.cpp` — constructor (`initWindow()` + `initVulkan()`), destructor (GLFW cleanup), `run()`, `initWindow()`, `initVulkan()` (four `make_unique` calls with `*context_` dereferences), `mainLoop()`, `onResize()`, `framebufferResizeCallback()`
+- Wrote `main.cpp` — `Application` on stack inside try/catch, no unnecessary includes
+- Added `Application.cpp` to `CMakeLists.txt`, one source per line
+- Fixed `command_buffer.begin({})` — resolved to empty Optional in Vulkan-Hpp; fixed by using named `vk::CommandBufferBeginInfo begin_info{}`
+- Fixed `synchronization2` not enabled — added `.synchronization2 = true` to `PhysicalDeviceVulkan13Features` in both `isDeviceSuitable()` and `createLogicalDevice()` feature chain (correct designated initializer order: `.synchronization2` before `.dynamicRendering`)
+- Fixed `presentKHR` crash on resize — `eErrorOutOfDateKHR` is thrown as `vk::OutOfDateKHRError` exception in Vulkan-Hpp, not returned as Result; wrapped in try/catch
+- Fixed minimise crash — added `glfwWaitEvents()` loop in `onResize()` to block while framebuffer is 0x0
+- All seven verification tests pass. Triangle visible, resize correct, minimise handled, clean exit
+
+**Left off:**
+Chapter 03 fully complete and verified.
+
+**Next session starts at:**
+Begin Chapter 04 — request the markdown for chapter 04.
+
+**Open questions / notes:**
+- Known semaphore warning: `imageAvailableSemaphore_` is per-frame-slot but should be per-swap-chain-image. Deferred to "Building a Simple Engine" phase — fix with `VK_EXT_swapchain_maintenance1`.
+- Aspect ratio: triangle stretches on resize — expected, no projection matrix yet. Fixed in Uniform Buffers chapter.
