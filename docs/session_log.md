@@ -622,3 +622,37 @@ Begin Chapter 04 — request the markdown for chapter 04.
 **Open questions / notes:**
 - Known semaphore warning: `imageAvailableSemaphore_` is per-frame-slot but should be per-swap-chain-image. Deferred to "Building a Simple Engine" phase — fix with `VK_EXT_swapchain_maintenance1`.
 - Aspect ratio: triangle stretches on resize — expected, no projection matrix yet. Fixed in Uniform Buffers chapter.
+
+---
+
+## Session 25 — 2026-04-14
+
+**Start time:** 07:11 EDT
+
+
+
+**Covered:**
+- Fetched all four Chapter 04 sub-pages and produced `docs/vulkan_chapter_04_vertex_buffers.md`
+- Full architecture discussion for Chapter 04:
+  - `Vertex` struct location: `renderer/buffers/Vertex.h` (GPU format descriptor, not scene data)
+  - Two-world separation: CPU/logical geometry (`scene/`, future) vs GPU/physical geometry (`renderer/buffers/`, now)
+  - Discussed Houdini-inspired separation of geometry-as-data vs geometry-as-GPU-resource
+  - New subfolder convention: `snake_case` for multi-word folders
+  - `renderer/buffers/` for GPU buffer resources, `renderer/textures/` for GPU image resources (Ch06)
+  - `Mesh` as pure GPU resource container — does NOT know how to upload itself
+  - `Renderer::createMesh()` factory handles staging upload for now
+  - `Application` calls `renderer_->createMesh()` during `initVulkan()` — stand-in for future scene layer
+  - `ResourceManager` noted as future home for upload logic ("Building a Simple Engine")
+  - `GraphicsPipeline::record()` receives `const Mesh&` — preserves "pipeline records itself" principle
+  - Private helpers `findMemoryType`, `createBuffer`, `copyBuffer` live on `Renderer`
+- Saved `docs/vulkan_implementation_plan_04_vertex_buffers.md`
+
+**Left off:**
+Chapter 04 fully prepared: markdown, architecture discussion, implementation plan, and learning plan all complete.
+
+**Next session starts at:**
+Begin M1 theory session — read §04.00 Vertex Input Description and answer the M1 comprehension questions in `docs/vulkan_learning_plan_04_vertex_buffers.md`.
+
+**Open questions / notes:**
+- `ResourceManager` confirmed as future destination for mesh/texture upload logic — deferred to "Building a Simple Engine"
+- `renderer/textures/` subfolder placeholder noted for Chapter 06
