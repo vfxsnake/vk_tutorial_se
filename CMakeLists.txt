@@ -62,6 +62,7 @@ add_executable(VulkanTutorial
     src/core/SwapChain.cpp
     src/renderer/GraphicsPipeline.cpp
     src/renderer/Renderer.cpp
+    src/renderer/buffers/Mesh.cpp
 )
 
 target_include_directories(VulkanTutorial PRIVATE

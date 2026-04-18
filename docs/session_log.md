@@ -656,3 +656,143 @@ Begin M1 theory session — read §04.00 Vertex Input Description and answer the
 **Open questions / notes:**
 - `ResourceManager` confirmed as future destination for mesh/texture upload logic — deferred to "Building a Simple Engine"
 - `renderer/textures/` subfolder placeholder noted for Chapter 06
+
+---
+
+## Session 26 — 2026-04-15
+
+**Start time:** 07:12 EDT
+**End time:** 08:54 EDT
+**Duration:** 1 hour 42 minutes
+
+**Covered:**
+- M1 Session A (Theory) — all eight comprehension questions answered
+- Q1: hardcoded shader geometry can't change at runtime; vertex buffers move data to the CPU
+- Q2: pipeline with empty vertex input ignores bound buffer; shader receives no vertex data
+- Q3: `binding` = buffer slot index; `stride` = bytes between vertices; `inputRate` = advance per-vertex or per-instance
+- Q4: `location` maps to shader `[vk::location(N)]`; `offset` is byte position within the struct (use `offsetof`)
+- Q5: image formats reused because the underlying data representation is identical
+- Q6: too few components → defaults (0, except W=1); too many → extras silently discarded
+- Q7: `vertex_input_info` in `createPipeline()` — update `pVertexBindingDescriptions` and `pVertexAttributeDescriptions`
+- Q8: pointers only need to be valid for the duration of the `vkCreateGraphicsPipelines` call
+- Summary paragraph written: pipeline contract changes from no vertex input to binding + attribute descriptions
+
+**Left off:**
+M1 Session A complete. Session B (implementation) not yet started.
+
+**Next session starts at:**
+Begin M1 Session B — implement `Vertex` struct in `src/renderer/buffers/Vertex.h`, then `getBindingDescription()` and `getAttributeDescriptions()`, update `GraphicsPipeline::createPipeline()`, and update `shaders/triangle.slang` to accept `VSInput`.
+
+**Open questions / notes:**
+- None.
+
+---
+
+## Session 27 — 2026-04-16
+
+**Start time:** 07:07 EDT
+**End time:** 09:52 EDT
+**Duration:** 2 hours 45 minutes
+
+**Covered:**
+- M1 Session B complete — `Vertex.h` implemented with `getBindingDescription()` and `getAttributeDescriptions()`, `GraphicsPipeline::createPipeline()` updated to wire in binding and attribute descriptions, `shaders/triangle.slang` updated with `VertexInput` struct, clean build confirmed
+- Clarified that `[vk::location(N)]` is a Slang language attribute (not from vulkan.hpp) but is optional when struct declaration order matches attribute description locations
+- M2 Session A (Theory) complete — all 8 comprehension questions answered:
+  - Q1: Buffer/memory separation enables suballocation — one large allocation bound to multiple buffers
+  - Q2: Driver rounds up size for alignment requirements
+  - Q3: Two conditions in `findMemoryType()` — typeFilter bitmask check + all property flags present
+  - Q4: `eHostVisible` = CPU can map/write; `eHostCoherent` = writes auto-visible to GPU without manual flushes
+  - Q5: `eHostCoherent` ensures visibility, not `submit()`
+  - Q6: Non-zero offset used for suballocation — binding second buffer into same DeviceMemory block
+  - Q7: `context_.getPhysicalDevice().getMemoryProperties()`
+  - Q8: Add `bindVertexBuffers()` before draw; replace hardcoded `3` with `vertices.size()`
+- Summary paragraph written: Buffer is a descriptor (size, usage, access); DeviceMemory is raw GPU allocation; separation enables suballocation and avoids `maxMemoryAllocationCount` limit
+
+**Left off:**
+M2 Session A complete. Session B (implementation) not yet started.
+
+**Next session starts at:**
+M2 Session B — open `Renderer.h`, add `findMemoryType()` and `createBuffer()` private method declarations and `vertexBuffer_` + `vertexMemory_` member variables, then implement both methods in `Renderer.cpp`.
+
+**Open questions / notes:**
+- None.
+
+
+---
+
+## Session 28 — 2026-04-17
+
+**Start time:** 07:16 EDT
+**End time:** 08:31 EDT
+**Duration:** 1 hour 15 minutes
+
+**Covered:**
+- Updated `Renderer.h` — added `findMemoryType()`, `createBuffer()`, `createVertexBuffer()` declarations, `vertexBuffer_` and `vertexMemory_` members, `#include "buffers/Vertex.h"`
+- Fixed `createVertexBuffer()` parameter: `const std::vector<Vertex>&` (not by value)
+- Fixed `class Vertex` forward declaration — replaced with full include
+- Deep dive on bitwise operators: `1 << i` (isolate bit at position i), `&` (test overlap), `(flags & mask) == mask` (test all bits present), `>>` (right shift)
+- Implemented `findMemoryType()` — memory type loop, two-condition check, `throw` on failure
+- Discussed operator precedence — added explicit parens around `(type_filter & (1 << i))`
+
+**Left off:**
+`findMemoryType()` complete. `createBuffer()` not yet started.
+
+**Next session starts at:**
+Implement `createBuffer()` — `BufferCreateInfo`, `getMemoryRequirements()`, `findMemoryType()`, `MemoryAllocateInfo`, `bindMemory()`, return `std::pair` with `std::move`.
+
+**Open questions / notes:**
+- None.
+
+---
+
+## Session 29 — 2026-04-17
+
+**Start time:** 09:47 EDT
+**End time:** 11:37 EDT
+**Duration:** 1 hour 50 minutes
+
+**Covered:**
+- Reviewed and corrected `createBuffer()` — style fix: `.cpp` uses traditional return type (not trailing), consistent with all prior `.cpp` definitions; saved feedback memory
+- Discussed `sizeof(vertices[0])` vs `sizeof(Vertex)` — both equivalent, `sizeof` is compile-time
+- Discussed empty vector edge case — `sizeof` is safe, but `buffer_size = 0` would trigger Vulkan validation error; assert suggested as guard
+- Confirmed staging buffer pattern matches implementation plan — staging → `copyBuffer()` → device-local
+- Reviewed `createVertexBuffer()` — fixed typo `stagin_buffer`, confirmed `std::tie` with RAII move-only types, confirmed `std::move` semantics via `operator=(P&&)`
+- Deep dive on `std::tie` — creates lvalue references, assignment from rvalue pair uses move; contrasted with structured binding for new variables
+- Implemented `copyBuffer()` — one-time command buffer, `eOneTimeSubmit` flag, `vk::BufferCopy` with designated initialisers, `waitIdle()` before scope exit
+- Fixed `*commandPool_` dereference in `CommandBufferAllocateInfo`
+
+**Left off:**
+`createBuffer()`, `createVertexBuffer()`, `copyBuffer()` all complete. Vertex buffer not yet wired up — `Renderer` constructor doesn't call `createVertexBuffer()` yet, and hardcoded vertices not yet defined.
+
+**Next session starts at:**
+Define hardcoded triangle vertices in `Application`, pass them to `Renderer::createVertexBuffer()` from the constructor, then update `GraphicsPipeline::record()` to bind the vertex buffer before drawing.
+
+**Open questions / notes:**
+- None.
+
+---
+
+## Session 30 — 2026-04-18
+
+**Start time:** 07:13 EDT
+**End time:** 09:37 EDT
+**Duration:** 2 hours 24 minutes
+
+**Covered:**
+- Created `Mesh` class in `src/renderer/buffers/Mesh.h/.cpp` — vertex-only, move-only, `getVertexBuffer()` and `getVertexCount()` accessors
+- Renamed `createVertexBuffer()` → `createMesh()` on `Renderer`, now returns `Mesh` by value (public method)
+- Updated `GraphicsPipeline::record()` to accept `const Mesh&`, added `bindVertexBuffers()` before `draw()`, replaced hardcoded `draw(3,...)` with `draw(mesh.getVertexCount(),...)`
+- Updated `Renderer::drawFrame()` to accept and forward `const Mesh&`
+- Updated `Application` — hardcoded quad vertices defined in `initVulkan()`, `mesh_` stored as `std::unique_ptr<Mesh>`, passed to `drawFrame()`
+- Full Windows build and run — triangle renders from vertex buffer, resize works, validation layers silent (pre-existing semaphore warning only)
+- M2 Session B complete. M3 Sessions B+C also effectively complete (implemented ahead of plan).
+
+**Left off:**
+M2 fully complete. M3 theory (Session A — staging buffer comprehension questions §04.02) not yet done.
+
+**Next session starts at:**
+M3 Session A — read §04.02 Staging Buffer in `docs/vulkan_chapter_04_vertex_buffers.md`, then answer the 8 comprehension questions in `docs/vulkan_learning_plan_04_vertex_buffers.md`.
+
+**Open questions / notes:**
+- Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine" (`VK_EXT_swapchain_maintenance1`)
+- Index buffer (M3 full) still pending — `Mesh` is vertex-only for now; will be extended with `indexBuffer_`, `bind()`, `drawIndexed()` after theory session

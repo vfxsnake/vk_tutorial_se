@@ -3,6 +3,8 @@
 #include "core/SwapChain.h"
 #include "GraphicsPipeline.h"
 
+#include <stdexcept>
+
 Renderer::Renderer(VulkanContext& context) : context_(context)
 {
     createCommandPool();
@@ -43,7 +45,7 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 }
 
 
- bool Renderer::drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline)
+ bool Renderer::drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh)
  {
     // CPU side fence: waiting for gpu task finishes
     vk::Result fence_result = context_.getLogicalDevice().waitForFences(
@@ -87,7 +89,8 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         renderFrameSlots_[currentFrame_].commandBuffer_,
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
-        swap_chain.getImageView(image_index)
+        swap_chain.getImageView(image_index),
+        mesh
     );
 
     // submit to queue
@@ -138,3 +141,109 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
     return true;
  }
+
+
+ uint32_t Renderer::findMemoryType(uint32_t type_filter, vk::MemoryPropertyFlags properties) const
+ {
+    vk::PhysicalDeviceMemoryProperties memory_properties = context_.getPhysicalDevice().getMemoryProperties();
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+    {
+        if (
+            (type_filter & (1 << i)) && 
+            (memory_properties.memoryTypes[i].propertyFlags & properties) == properties
+        )
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+ }
+
+
+ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Renderer::createBuffer(
+        vk::DeviceSize size, 
+        vk::BufferUsageFlags usage, 
+        vk::MemoryPropertyFlags memory_properties
+    )
+{
+    vk::BufferCreateInfo create_buffer_info{
+        .size = size,
+        .usage = usage,
+        .sharingMode = vk::SharingMode::eExclusive
+    };
+
+    vk::raii::Buffer buffer = vk::raii::Buffer(context_.getLogicalDevice(), create_buffer_info);
+    vk::MemoryRequirements memory_requirements = buffer.getMemoryRequirements();
+    vk::MemoryAllocateInfo memory_allocate_info{
+        .allocationSize = memory_requirements.size,
+        .memoryTypeIndex = findMemoryType(memory_requirements.memoryTypeBits, memory_properties)
+    };
+
+    vk::raii::DeviceMemory buffer_memory = vk::raii::DeviceMemory(context_.getLogicalDevice(), memory_allocate_info);
+    buffer.bindMemory(*buffer_memory, 0);
+    return {std::move(buffer), std::move(buffer_memory)};
+}
+
+
+void Renderer::copyBuffer(
+        vk::raii::Buffer &source_buffer, 
+        vk::raii::Buffer &destination_buffer, 
+        vk::DeviceSize size
+    )
+{
+    vk::CommandBufferAllocateInfo buffer_allocate_info{
+        .commandPool = *commandPool_,
+        .level = vk::CommandBufferLevel::ePrimary, 
+        .commandBufferCount = 1
+    };
+
+    vk::raii::CommandBuffer command_copy_buffer = std::move(context_.getLogicalDevice().allocateCommandBuffers(buffer_allocate_info).front());
+    vk::CommandBufferBeginInfo command_buffer_begin_info{.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+    command_copy_buffer.begin(command_buffer_begin_info);
+    vk::BufferCopy buffer_copy{
+        .srcOffset = 0, 
+        .dstOffset = 0,
+        .size = size
+    };
+    command_copy_buffer.copyBuffer(*source_buffer, *destination_buffer, buffer_copy);
+    command_copy_buffer.end();
+    vk::SubmitInfo submit_info{
+        .commandBufferCount = 1,
+        .pCommandBuffers = &*command_copy_buffer
+    };
+    context_.getQueue().submit(submit_info, nullptr);
+    context_.getQueue().waitIdle();
+}
+
+
+Mesh Renderer::createMesh(const std::vector<Vertex>& vertices)
+{
+    vk::DeviceSize buffer_size = sizeof(Vertex) * vertices.size();  // on the tutorial sizeof(vertices[0]) works the same as it pulls the type from the array address
+    
+    // pulling the vk::raii::buffer and vk::raii::DeviceMemory
+    auto [staging_buffer, staging_buffer_memory] = createBuffer(
+        buffer_size,
+        vk::BufferUsageFlagBits::eTransferSrc, 
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+    );
+
+    void *data_staging = staging_buffer_memory.mapMemory(0, buffer_size);
+    memcpy(data_staging, vertices.data(), buffer_size);
+    staging_buffer_memory.unmapMemory();
+
+    auto [vertex_buffer, vertex_buffer_memory_] = createBuffer(
+        buffer_size, 
+        vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::MemoryPropertyFlagBits::eDeviceLocal
+    );
+
+    copyBuffer(staging_buffer, vertex_buffer, buffer_size);
+
+    return Mesh(
+        std::move(vertex_buffer), 
+        std::move(vertex_buffer_memory_), 
+        static_cast<uint32_t>(vertices.size())
+    );
+
+}

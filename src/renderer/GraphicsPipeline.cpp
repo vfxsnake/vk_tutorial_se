@@ -1,6 +1,8 @@
 #include "GraphicsPipeline.h"
 #include "core/VulkanContext.h"
 #include "utils/FileUtils.h"
+#include "renderer/buffers/Vertex.h"
+#include "renderer/buffers/Mesh.h"
 
 #include <stdexcept>
 #include <array>
@@ -49,7 +51,16 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
 
     vk::PipelineShaderStageCreateInfo shader_stages[] = {vertex_shader_stage_info, fragment_shader_stage_info};
 
-    vk::PipelineVertexInputStateCreateInfo vertex_input_info; // empty for now as there is no bind descriptions (geometry {vert post, vert uvs})
+    // Getting descriptions directly from Vertex class static functions.
+    vk::VertexInputBindingDescription vertex_binding_description = Vertex::getBindingDescription();
+    std::array<vk::VertexInputAttributeDescription, 2> vertex_attribute_descriptions =  Vertex::getAttributeDescriptions();
+    
+    vk::PipelineVertexInputStateCreateInfo vertex_input_info{
+        .vertexBindingDescriptionCount = 1,
+        .pVertexBindingDescriptions = &vertex_binding_description,
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attribute_descriptions.size()),
+        .pVertexAttributeDescriptions = vertex_attribute_descriptions.data()
+    };
     
     vk::PipelineInputAssemblyStateCreateInfo input_assembly{
         .topology = vk::PrimitiveTopology::eTriangleList
@@ -171,7 +182,7 @@ void GraphicsPipeline::transitionImageLayout(
     command_buffer.pipelineBarrier2(dependency_info);
 }
 
-void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view)
+void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view, const Mesh& mesh)
 {
     vk::CommandBufferBeginInfo command_buffer_beging_info{};
     if (command_buffer.begin(&command_buffer_beging_info) != vk::Result::eSuccess)
@@ -221,7 +232,8 @@ void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D ext
         vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f)
     );
     command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
-    command_buffer.draw(3, 1,0 ,0);  // hard coded triangle: vertex number (3), instance cout /num of instances (1), first vertext at index (0) , triangle instances ids starts at (0)
+    command_buffer.bindVertexBuffers(0, *mesh.getVertexBuffer(), {0}); // here we bind the vertex out from mesh's vertex buffer to the gpu
+    command_buffer.draw(mesh.getVertexCount(), 1,0 ,0);  // number of vertex, instance cout /num of instances (1), first vertext at index (0) , triangle instances ids starts at (0)
     command_buffer.endRendering();
 
     // transition the swap chain image to ePresenter source 

@@ -4,6 +4,8 @@
 #include "core/SwapChain.h"
 #include "renderer/GraphicsPipeline.h"
 #include "renderer/Renderer.h"
+#include "renderer/buffers/Mesh.h"
+#include "renderer/buffers/Vertex.h"
 
 
 Application::Application()
@@ -46,6 +48,17 @@ void Application::initVulkan()
     swapChain_ = std::make_unique<SwapChain>(*context_, window_);  //*context_ dereferencing of context as we need it as reference.
     graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, swapChain_->getFormat());
     renderer_ = std::make_unique<Renderer>(*context_);
+ 
+    /*
+        temporary definition of the vertex data
+    */
+    const std::vector<Vertex> vertices = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(vertices));
 }
 
 
@@ -54,7 +67,7 @@ void Application::mainLoop()
     while (!glfwWindowShouldClose(window_))
     {
         glfwPollEvents();
-        if (!(renderer_->drawFrame(*swapChain_, *graphicsPipeline_)) || framebufferResized_)
+        if (!(renderer_->drawFrame(*swapChain_, *graphicsPipeline_, *mesh_)) || framebufferResized_)
         {
             onResize();
         }

@@ -5,6 +5,7 @@
 
 // forward declaration
 class VulkanContext;
+class Mesh;
 
 
 class GraphicsPipeline
@@ -16,7 +17,7 @@ public:
     GraphicsPipeline(const GraphicsPipeline&) = delete;
     GraphicsPipeline& operator =(const GraphicsPipeline&) = delete;
 
-    void record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view);
+    void record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view, const Mesh& mesh);
     auto getPipeline() const -> const vk::raii::Pipeline&;
 
 private:
