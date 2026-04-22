@@ -796,3 +796,91 @@ M3 Session A — read §04.02 Staging Buffer in `docs/vulkan_chapter_04_vertex_b
 **Open questions / notes:**
 - Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine" (`VK_EXT_swapchain_maintenance1`)
 - Index buffer (M3 full) still pending — `Mesh` is vertex-only for now; will be extended with `indexBuffer_`, `bind()`, `drawIndexed()` after theory session
+
+---
+
+## Session 31 — 2026-04-20
+
+**Start time:** 08:12 EDT
+
+**End time:** 09:39 EDT
+**Duration:** 1 hour 27 minutes
+
+**Covered:**
+- M3 Session A (Theory) complete — all 8 comprehension questions answered
+- Q1: Device-local = VRAM on GPU die, no PCIe crossing; host-visible = system RAM, GPU must cross PCIe bus (~16 GB/s vs ~500 GB/s)
+- Q2: Staging not appropriate for per-frame updates; GPU compute shaders write directly into device-local buffer; drawIndirect for dynamic counts
+- Q3: Any queue family supporting eGraphics or eCompute implicitly supports transfer — no dedicated transfer queue needed
+- Q4: eOneTimeSubmit hints driver to skip caching/reuse optimisation for this command buffer
+- Q5: vkCmdCopyBuffer records a command — exact byte count must be baked in at record time; GPU has no "whole size" concept at execution time
+- Q6: VMA (Vulkan Memory Allocator) — allocate large blocks, suballocate with offsets to avoid maxMemoryAllocationCount limit
+- Q7: Application → Renderer::createMesh() → staging → device-local → Mesh returned to Application; staging destroyed on scope exit
+- Q8: ResourceManager will need VulkanContext (for queue/device) + CommandPool — it's a proper GPU-facing object, not a lightweight helper
+- Data flow description: full CPU→staging→device-local→Mesh→drawFrame path described correctly
+- waitIdle() paragraph: blocks CPU, destroys CPU/GPU parallelism; acceptable once at startup, not in frame loop
+
+**Left off:**
+M3 Session A complete. M4 (Index Buffer) theory session is next.
+
+**Next session starts at:**
+M4 Session A — read §04.03 Index Buffer in `docs/vulkan_chapter_04_vertex_buffers.md`, then answer the comprehension questions in `docs/vulkan_learning_plan_04_vertex_buffers.md` under Milestone M4.
+
+**Open questions / notes:**
+- Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"
+- Index buffer implementation (M4 Sessions B+C) still pending — Mesh is vertex-only for now
+
+---
+
+## Session 32 — 2026-04-21
+
+**Start time:** 07:55 EDT
+**End time:** 08:58 EDT
+**Duration:** 1 hour 3 minutes
+
+**Covered:**
+- M4 Session A (Theory) complete — all 6 comprehension questions answered
+- Q1: Non-indexed = 3000 vertices; indexed = 1000 unique vertices; ~42,000 byte saving (~58%) for 24-byte Vertex
+- Q2: Post-transform vertex cache — vertex shader runs once per unique vertex, cached result reused by subsequent triangles
+- Q3: `vertexOffset` in `drawIndexed()` adds a constant to all indices — shifts mesh-local indices into a combined vertex buffer
+- Q4: `uint16_t` = 2 bytes/index, max 65,535 vertices; `uint32_t` = 4 bytes/index, max ~4.29 billion vertices
+- Q5: `bindVertexBuffers(offset)`, `bindIndexBuffer(offset)`, `drawIndexed(firstIndex, vertexOffset)` — four parameters supporting single-buffer pattern
+- Q6: `Application` implicitly decides type (uses `vector<uint16_t>`) → `createMesh(span<const uint16_t>)` passes `eUint16` → `Mesh` constructor stores `indexType_`
+- Rectangle layout: 0=top-left, 1=top-right, 2=bottom-right, 3=bottom-left; indices `0,1,2,2,3,0`
+- Side discussion: mixing `uint16_t`/`uint32_t` per mesh is valid and done in practice — `indexType_` member already supports it; deferred until multiple meshes exist
+
+**Left off:**
+M4 Session A complete. Session B (implementation) not yet started.
+
+**Next session starts at:**
+M4 Session B — extend `Mesh` with index buffer members, update `Renderer::createMesh()` to stage index buffer, update `Application` with four rectangle vertices and six indices, update `GraphicsPipeline::record()` to use `bind()` + `drawIndexed()`.
+
+**Open questions / notes:**
+- Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"
+
+---
+
+## Session 33 — 2026-04-22
+
+**Start time:** 07:56 EDT
+**End time:** 09:42 EDT
+**Duration:** 1 hour 46 minutes
+
+**Covered:**
+- Discussed template design options for `createMesh()` (header-side body vs `.cpp` with explicit instantiation vs two named methods `createMesh16`/`createMesh32`)
+- User chose to ship concrete `uint16_t` version first — refactor deferred to Simple Engine phase when real usage will reveal the right shape
+- Clarified: index type is a **runtime** property of `Mesh` via `vk::IndexType indexType_` member; `bind()` passes it to `bindIndexBuffer()`. `Mesh` is naturally index-type-agnostic — the compile-time type question lives only in `Renderer::createMesh()` (for buffer sizing and enum selection)
+- Extended `Mesh.h` and `Mesh.cpp` — added `indexBuffer_`, `indexMemory_`, `indexCount_`, `indexType_` members; extended constructor to 7 params; added `bind()` and `getIndexCount()`
+- Removed `getVertexBuffer()` accessor — encapsulation tightened, all buffer binding now goes through `mesh.bind()`
+- `Mesh::bind()` signature uses `const vk::CommandBuffer&` to match `GraphicsPipeline::record()` — note: should be **by value** (8-byte handle) not by const-ref for Vulkan-Hpp idiom; deferred fix
+- Updated `GraphicsPipeline::record()` line 235-236 — `mesh.bind(command_buffer)` + `drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0)` replacing prior `bindVertexBuffers` + `draw`
+- Saved `memory/feedback_concrete_first.md` — user prefers concrete single-type implementations over upfront abstractions; refactor after real usage reveals shape
+
+**Left off:**
+M4 Session B partially complete — `Mesh` and `GraphicsPipeline::record()` done. `Renderer::createMesh()` signature/body not yet updated to accept indices, and `Application.cpp` not yet updated to rectangle vertices + index vector. Build currently broken because call sites don't match new signatures.
+
+**Next session starts at:**
+M4 Session B continued — update `Renderer.h` / `Renderer.cpp` so `createMesh()` takes `const std::vector<Vertex>&` + `const std::vector<uint16_t>&`, stages both buffers, and constructs `Mesh` with all 7 args including `vk::IndexType::eUint16`. Then update `Application.cpp` with four rectangle vertices + `std::vector<uint16_t> indices = {0,1,2,2,3,0}` and pass both to `createMesh()`. Also apply the `vk::CommandBuffer` by-value style fix on `Mesh::bind()` (remove `const&`).
+
+**Open questions / notes:**
+- **Style fix pending**: `Mesh::bind(const vk::CommandBuffer&)` → `Mesh::bind(vk::CommandBuffer)` — pass by value to match Vulkan-Hpp idiom for 8-byte handles. Flag at next review.
+- Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"

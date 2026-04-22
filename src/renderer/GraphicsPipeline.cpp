@@ -232,8 +232,8 @@ void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D ext
         vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f)
     );
     command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
-    command_buffer.bindVertexBuffers(0, *mesh.getVertexBuffer(), {0}); // here we bind the vertex out from mesh's vertex buffer to the gpu
-    command_buffer.draw(mesh.getVertexCount(), 1,0 ,0);  // number of vertex, instance cout /num of instances (1), first vertext at index (0) , triangle instances ids starts at (0)
+    mesh.bind(command_buffer);
+    command_buffer.drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0);
     command_buffer.endRendering();
 
     // transition the swap chain image to ePresenter source 
