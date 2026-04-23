@@ -58,7 +58,12 @@ void Application::initVulkan()
     {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
     {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 
-    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(vertices));
+    /*
+        temporary definition of the index data
+    */
+    const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+
+    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(vertices, indices));
 }
 
 

@@ -884,3 +884,41 @@ M4 Session B continued — update `Renderer.h` / `Renderer.cpp` so `createMesh()
 **Open questions / notes:**
 - **Style fix pending**: `Mesh::bind(const vk::CommandBuffer&)` → `Mesh::bind(vk::CommandBuffer)` — pass by value to match Vulkan-Hpp idiom for 8-byte handles. Flag at next review.
 - Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"
+
+---
+
+## Session 34 — 2026-04-23
+
+**Start time:** 07:49 EDT
+**End time:** 09:54 EDT
+**Duration:** 2 hours 5 minutes
+
+**Covered:**
+- Style fix on `Mesh::bind()` — user dropped `const` but kept the `&`; now `vk::CommandBuffer&` (intent was pass-by-value `vk::CommandBuffer`). Non-blocking — flagged for next review.
+- Updated `Renderer::createMesh()` signature and body to accept `const std::vector<uint16_t>& indices` — staged both vertex and index buffers, constructed `Mesh` with all 7 args including `vk::IndexType::eUint16`. Build broken mid-session as expected until call sites updated.
+- Architecture discussion — extracted the repeated staging pattern into a new private helper `uploadBufferToDevice(const void*, vk::DeviceSize, vk::BufferUsageFlags) -> std::pair<Buffer, DeviceMemory>`. Design decisions:
+  - `const void*` + size chosen over templated `std::span<const T>` — simpler, matches Vulkan/C idiom, caller computes size inline
+  - Helper auto-ORs `eTransferDst` so callers pass only role flag (`eVertexBuffer` / `eIndexBuffer`)
+  - Returns `std::pair` for consistency with existing `createBuffer()` helper
+  - Non-const method — discussed that references don't propagate const in C++, but `const` is a contract with the reader. Side-effecting GPU work should not be labelled const even when it compiles.
+  - Lives on `Renderer` alongside `createBuffer`/`copyBuffer` — will migrate to `ResourceManager` as a coherent group during "Building a Simple Engine"
+- Teaching moments during the discussion:
+  - `T*` → `const void*` implicit conversion (same rule that lets `memcpy` accept any pointer type)
+  - `vk::BufferUsageFlagBits` (single bit) vs `vk::BufferUsageFlags` (bitmask wrapper) — must use `Flags` to support OR composition
+  - `const` on methods with reference-member side effects: compiler permits it, but readers will be misled
+- Implemented `uploadBufferToDevice()` body: staging buffer → mapMemory → memcpy → unmapMemory → device-local buffer with `usage | eTransferDst` → `copyBuffer` → return pair
+- Refactored `createMesh()` to use the helper — ~55 lines → ~19 lines. Two calls to `uploadBufferToDevice()` + `Mesh` construction.
+- Updated `Application.cpp` — four rectangle vertices (red top-left, green top-right, blue bottom-right, white bottom-left), `std::vector<uint16_t> indices = {0,1,2,2,3,0}`, call to `renderer_->createMesh(vertices, indices)`. Winding order (eClockwise) verified against screen-space Y-down layout.
+- WSL build clean. Windows build clean. End-to-end visual test passed — rectangle renders with smooth color gradient across all four corners. Resize works. No new validation errors.
+- **M4 complete. Chapter 04 (Vertex Buffers) fully complete — all four milestones done.**
+
+**Left off:**
+Chapter 04 fully complete and verified on Windows.
+
+**Next session starts at:**
+Begin Chapter 05 (Uniform Buffers) — request the markdown for chapter 05, then proceed with the architecture discussion before the learning plan.
+
+**Open questions / notes:**
+- **Style fix pending**: `Mesh::bind(vk::CommandBuffer&)` → `Mesh::bind(vk::CommandBuffer)` (drop the `&`, pass by value — 8-byte handle). Trivial one-line fix in header and cpp. Apply at start of next session.
+- Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"
+- Aspect ratio distortion on resize still expected — fixed in Chapter 05 (Uniform Buffers) via projection matrix.

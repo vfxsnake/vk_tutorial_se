@@ -217,10 +217,12 @@ void Renderer::copyBuffer(
 }
 
 
-Mesh Renderer::createMesh(const std::vector<Vertex>& vertices)
+std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Renderer::uploadBufferToDevice(
+        const void* data,
+        vk::DeviceSize buffer_size, 
+        vk::BufferUsageFlags usage
+    )
 {
-    vk::DeviceSize buffer_size = sizeof(Vertex) * vertices.size();  // on the tutorial sizeof(vertices[0]) works the same as it pulls the type from the array address
-    
     // pulling the vk::raii::buffer and vk::raii::DeviceMemory
     auto [staging_buffer, staging_buffer_memory] = createBuffer(
         buffer_size,
@@ -229,21 +231,45 @@ Mesh Renderer::createMesh(const std::vector<Vertex>& vertices)
     );
 
     void *data_staging = staging_buffer_memory.mapMemory(0, buffer_size);
-    memcpy(data_staging, vertices.data(), buffer_size);
+    memcpy(data_staging, data, buffer_size);
     staging_buffer_memory.unmapMemory();
 
-    auto [vertex_buffer, vertex_buffer_memory_] = createBuffer(
+    auto [buffer, buffer_memory] = createBuffer(
         buffer_size, 
-        vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        usage | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eDeviceLocal
     );
 
-    copyBuffer(staging_buffer, vertex_buffer, buffer_size);
+    copyBuffer(staging_buffer, buffer, buffer_size);
+    return {std::move(buffer), std::move(buffer_memory)};
+}
+
+
+Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices)
+{
+    // Vertex buffer handling
+    vk::DeviceSize vertex_buffer_size = sizeof(Vertex) * vertices.size();  // on the tutorial sizeof(vertices[0]) works the same as it pulls the type from the array address
+    auto [vertex_buffer, vertex_buffer_memory] = uploadBufferToDevice(
+        vertices.data(), 
+        vertex_buffer_size, 
+        vk::BufferUsageFlagBits::eVertexBuffer
+    );
+
+    // Index buffer handling
+    vk::DeviceSize index_buffer_size = sizeof(uint16_t) * indices.size();
+    auto [index_buffer, index_buffer_memory] = uploadBufferToDevice(
+        indices.data(), 
+        index_buffer_size, 
+        vk::BufferUsageFlagBits::eIndexBuffer
+    );
 
     return Mesh(
         std::move(vertex_buffer), 
-        std::move(vertex_buffer_memory_), 
-        static_cast<uint32_t>(vertices.size())
+        std::move(vertex_buffer_memory), 
+        static_cast<uint32_t>(vertices.size()),
+        std::move(index_buffer),
+        std::move(index_buffer_memory),
+        static_cast<uint32_t>(indices.size()),
+        vk::IndexType::eUint16
     );
-
 }

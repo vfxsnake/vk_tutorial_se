@@ -32,7 +32,7 @@ uint32_t Mesh::getIndexCount() const
 }
 
 
-void Mesh::bind(const vk::CommandBuffer& command_buffer) const
+void Mesh::bind(vk::CommandBuffer& command_buffer) const
 {
     command_buffer.bindVertexBuffers(0, *vertexBuffer_, {0});
     command_buffer.bindIndexBuffer(*indexBuffer_, 0, indexType_);

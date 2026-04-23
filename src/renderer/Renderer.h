@@ -25,7 +25,7 @@ public:
     Renderer& operator =(const Renderer&) = delete;
 
     bool drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh);
-    Mesh createMesh(const std::vector<Vertex>& vertices);
+    Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
 
 private:
     void createCommandPool();
@@ -44,6 +44,12 @@ private:
         vk::raii::Buffer &destination_buffer, 
         vk::DeviceSize size
     );
+
+    auto uploadBufferToDevice(
+        const void* data,
+        vk::DeviceSize buffer_size, 
+        vk::BufferUsageFlags usage
+    ) -> std::pair<vk::raii::Buffer, vk::raii::DeviceMemory>;
 
     // private member variables
     VulkanContext& context_;
