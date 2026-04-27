@@ -26,10 +26,12 @@ public:
 
     bool drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh);
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
+    void setupPerImageResources(uint32_t image_count);
 
 private:
     void createCommandPool();
     void initializeFrameData();
+    void createFinishedSemaphores(uint32_t image_count);
     
     uint32_t findMemoryType(uint32_t type_filter, vk::MemoryPropertyFlags properties) const;
     
@@ -56,5 +58,5 @@ private:
     vk::raii::CommandPool commandPool_ = nullptr;
     std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
     uint32_t currentFrame_ = 0;
-    
+    std::vector<vk::raii::Semaphore> renderFinishedSemaphores_;
 };

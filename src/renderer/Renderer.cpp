@@ -21,6 +21,25 @@ void Renderer::createCommandPool()
     commandPool_ = vk::raii::CommandPool(context_.getLogicalDevice(), command_pool_create_info);
 }
 
+
+void Renderer::createFinishedSemaphores(uint32_t image_count)
+{
+    renderFinishedSemaphores_.clear();
+    renderFinishedSemaphores_.reserve(image_count);
+    for (uint32_t i = 0; i < image_count; i++)
+    {
+        //  emplace_back will call vk::raii::Semaphore's constructor with the parameters (logicalDevice, SemaphoreCreateInfo).           
+        renderFinishedSemaphores_.emplace_back(context_.getLogicalDevice(), vk::SemaphoreCreateInfo()); 
+    }
+}
+
+
+void Renderer::setupPerImageResources(uint32_t image_count)
+{
+    createFinishedSemaphores(image_count);
+}
+
+
 void Renderer::initializeFrameData()  // initialize frame data (syncronization objects)
 {
     // 
@@ -37,7 +56,6 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         
         // refer to CreteSyncObjects() in the vulkan tutorial.
         render_frame_slot.imageAvailableSemaphore_ = vk::raii::Semaphore(context_.getLogicalDevice(), vk::SemaphoreCreateInfo());
-        render_frame_slot.renderFinishedSemaphore_ = vk::raii::Semaphore(context_.getLogicalDevice(), vk::SemaphoreCreateInfo());
         render_frame_slot.inFlightFence_ = vk::raii::Fence(
             context_.getLogicalDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled}
         );
@@ -69,7 +87,6 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 
     if (available_image_result == vk::Result::eErrorOutOfDateKHR)
     {
-        swap_chain.recreate();
         return false;
     }
 
@@ -93,8 +110,6 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         mesh
     );
 
-    // submit to queue
-
     static constexpr vk::PipelineStageFlags wait_destination_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
     const vk::SubmitInfo submit_info{
@@ -104,7 +119,7 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         .commandBufferCount = 1,
         .pCommandBuffers = &*(renderFrameSlots_[currentFrame_].commandBuffer_),
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*(renderFrameSlots_[currentFrame_].renderFinishedSemaphore_)
+        .pSignalSemaphores = &*(renderFinishedSemaphores_[image_index])
     };
 
     context_.getQueue().submit(submit_info, *(renderFrameSlots_[currentFrame_].inFlightFence_));
@@ -112,7 +127,7 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
     // presenter
     const vk::PresentInfoKHR present_info{
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*(renderFrameSlots_[currentFrame_].renderFinishedSemaphore_),
+        .pWaitSemaphores = &*(renderFinishedSemaphores_[image_index]),
         .swapchainCount = 1,
         .pSwapchains = &*swap_chain.get(),
         .pImageIndices = &image_index

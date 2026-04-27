@@ -922,3 +922,95 @@ Begin Chapter 05 (Uniform Buffers) — request the markdown for chapter 05, then
 - **Style fix pending**: `Mesh::bind(vk::CommandBuffer&)` → `Mesh::bind(vk::CommandBuffer)` (drop the `&`, pass by value — 8-byte handle). Trivial one-line fix in header and cpp. Apply at start of next session.
 - Pre-existing semaphore warning unchanged — deferred to "Building a Simple Engine"
 - Aspect ratio distortion on resize still expected — fixed in Chapter 05 (Uniform Buffers) via projection matrix.
+
+---
+
+## Session 35 — 2026-04-24
+
+**Start time:** 07:51 EDT
+**End time:** 11:29 EDT
+**Duration:** 3 hours 38 minutes
+
+**Covered:**
+- Confirmed `Mesh::bind()` style fix applied — `vk::CommandBuffer` by value, `const` method
+- Generated `docs/vulkan_chapter_05_uniform_buffers.md` — both sub-pages fetched, prose-only synthesis, full pitfalls + Y-flip/winding knock-on coverage
+- Architecture discussion Q1 — `UniformBufferObject` location decided: `src/renderer/buffers/UniformBufferObject.h`, next to `Vertex.h` (pure GPU wire format, permanent home — future `Camera` class in `scene/` will produce view/proj matrices that feed into the existing struct at upload time)
+- Architecture discussion Q2 — descriptor pool + per-frame descriptor sets decided: `Renderer` owns pool + layout; sets live in `RenderFrameSlot`. Future `ResourceManager` will own a second pool for material/texture descriptors (Ch06+). Principle agreed: pool home is dictated by what it allocates, not by centralisation
+- Architecture discussion Q3 started — agreed extend `RenderFrameSlot` with `uniformBuffer_`, `uniformMemory_`, `uniformMapped_`, `descriptorSet_` (same rule: one slot = everything needed to render one frame)
+- Diverted to address pre-existing `renderFinishedSemaphore` validation warning before Ch05 — user wanted to confirm RenderFrameSlot structure is stable before adding more
+- Discovered `Renderer::drawFrame` line 88 calls `swap_chain.recreate()` internally — identified as root cause of the "scattered call sites" pain; agreed to remove it and let `Application` own swap-chain lifecycle uniformly
+- Discussed tutorial's `createSyncObjects` approach vs ours — concluded tutorial also has scatter (assert(empty) forces recreation logic into a second place); our `RenderFrameSlot` abstraction is cleaner once the drawFrame recreate is removed
+- Reviewed user's `createFinishedSemaphores(uint32_t)` — flagged missing `renderFinishedSemaphores_.clear()` at start (required because function is called on every recreate), suggested optional `.reserve(image_count)`
+- Confirmed `Application::onResize` does `context_->getLogicalDevice().waitIdle()` before `swapChain_->recreate()` — safe to `.clear()` RAII semaphores inside recreate flow
+- Final framing: **RenderFrameSlot holds everything indexed by `currentFrame_`; Renderer holds everything indexed by `imageIndex`.** Split by indexing lifetime, not by Vulkan type — user agreed. `imageAvailableSemaphore_` stays in the slot (must be per-slot because it's signalled by acquire *before* imageIndex is known).
+
+**Key decisions made this session:**
+- Chapter 05 UBO struct location: `src/renderer/buffers/UniformBufferObject.h` (permanent — never migrates to `scene/`)
+- Descriptor pool ownership: `Renderer` (per-frame pool); future material pool will live on `ResourceManager`
+- Per-frame uniform + descriptor set resources: extend `RenderFrameSlot` (one slot = everything for one frame in flight)
+- Pre-Ch05 refactor agreed: (1) remove `swap_chain.recreate()` from `Renderer::drawFrame` line 88, (2) add public `Renderer::onSwapChainResized(uint32_t)` that wraps `createFinishedSemaphores`, (3) call from `Application::initVulkan` after swap chain construction and from `Application::onResize` after `swapChain_->recreate()`, (4) fix missing `.clear()` inside `createFinishedSemaphores`, (5) drop `renderFinishedSemaphore_` from `RenderFrameSlot`, (6) update drawFrame submit/present to use `renderFinishedSemaphores_[imageIndex]`
+
+**Left off:**
+Refactor agreed, not yet written. User will implement in next session. Ch05 architecture discussion paused after Q3 — Q4+ (descriptor set layout lifetime, who owns `updateUniformBuffer`, Camera timing) not started.
+
+**Next session starts at:**
+Implement the six-step semaphore refactor in this order:
+1. Remove line 88 `swap_chain.recreate();` from `Renderer::drawFrame`; keep `return false;`
+2. Add `.clear()` (and optional `.reserve()`) at the top of `createFinishedSemaphores`
+3. Expose `void onSwapChainResized(uint32_t image_count)` public on `Renderer.h`; implement as one-liner calling `createFinishedSemaphores(image_count)`
+4. Remove `renderFinishedSemaphore_` from `RenderFrameSlot.h` and its creation in `initializeFrameData()`
+5. Update `drawFrame` submit signal + present wait to use `*renderFinishedSemaphores_[image_index]` (indexed by `image_index`, not `currentFrame_`)
+6. Add `renderer_->onSwapChainResized(swapChain_->getImageCount());` in `Application::initVulkan()` after SwapChain construction AND in `Application::onResize()` after `swapChain_->recreate()`
+Then Windows build + verify: OBS_HOOK warning remains (harmless), both `pSignalSemaphores` warnings gone, rectangle still renders correctly, resize clean. After that, resume Ch05 architecture discussion at Q4.
+
+**Open questions / notes:**
+- OBS_HOOK warning (`VK_LAYER_OBS_HOOK uses API version 1.3 which is older than the application specified API version of 1.4`) — harmless, third-party layer injected by OBS Studio; disappears when OBS quits. Not our code.
+- Ch05 architecture discussion is paused mid-stream — Q4 onwards (descriptor set layout home, updateUniformBuffer location, who owns MVP math) still to resolve before learning plan.
+- Ch04 aspect-ratio distortion on resize still expected — Ch05's projection matrix will fix it.
+
+---
+
+## Session 36 — 2026-04-27
+
+**Start time:** 07:45 EDT
+**End time:** 09:53 EDT
+**Duration:** 2 hours 8 minutes
+
+**Covered:**
+- Reviewed in-progress six-step refactor on disk; confirmed 4 of 6 steps already applied (RenderFrameSlot trim, `clear()`/`reserve()`, vector member, drawFrame submit/present uses `image_index`)
+- User completed remaining refactor steps: removed `swap_chain.recreate()` from `Renderer::drawFrame` eErrorOutOfDateKHR branch, exposed public method, called it from `Application::initVulkan` and `Application::onResize`
+- Long naming discussion for the new public method on Renderer that rebuilds per-image resources. Cycled through `onSwapChainResized` (event-handler false promise) → `initializePerImageResources` (best fit, idempotent by `clear()`) → `clearPerImageResources`/`cleanPerImageResources` (rejected — destructive verb contradicts `image_count` parameter) → `startUpPerImageResources` (rejected — even stronger "once-only" connotation than initialize). User landed on `setUpPerImageResources` — works, but flagged as style nit at end of session: "setup" is one word in modern English, and `initializeFrameData` already exists as sibling on the same class
+- Hit and diagnosed validation error after Windows build: `vkQueueSubmit(): pSubmits[0].pSignalSemaphores[0] Invalid VkSemaphore Object 0x0`
+  - Diagnostic prints (handle, size, image_index) localized the bug to construction itself — handles were `0x0` immediately after `emplace_back`
+  - Root cause: bare `{}` second arg to `vk::raii::Semaphore(device, {})` is ambiguous between two viable overloads — `Semaphore(Device, SemaphoreCreateInfo)` (creates) and `Semaphore(Device, VkSemaphore)` (wraps a raw handle). MSVC silently picked the wrap overload, value-initializing `VkSemaphore` to null. No exception, no warning.
+  - Fix: explicit `vk::SemaphoreCreateInfo()` instead of `{}`. User noted the tutorial uses an even cleaner pattern: `emplace_back(device, vk::SemaphoreCreateInfo())` — forwards args to in-place construction directly, skipping the wrapper temporary AND the overload ambiguity.
+  - Saved feedback memory `feedback_vk_raii_construction.md` — "never pass bare `{}` for the create-info arg of two-arg vk::raii::* constructors"
+- Build clean on Windows; rectangle renders; resize / minimize / maximize all working without validation errors. Refactor verified end-to-end.
+- Resumed Ch05 architecture discussion at Q4. **Q4 (descriptor set layout home) settled:**
+  - Standalone class `FrameDescriptorLayout` (not on Renderer — user explicitly avoided letting Renderer become the next VulkanContext grab-bag)
+  - Single-purpose (option A) — Ch06 textures will get a separate sibling class, won't expand this one
+  - Self-contained — constructor `FrameDescriptorLayout(const VulkanContext&)`, hardcodes binding 0 = UBO, eVertex stage; one member + one accessor returning `const vk::raii::DescriptorSetLayout&`
+  - Files: `src/renderer/descriptors/FrameDescriptorLayout.h/.cpp` (new `descriptors/` subfolder)
+  - Owner: `Application`. Consumers: `GraphicsPipeline` and `Renderer`, both by `const FrameDescriptorLayout&` constructor parameter. Constructed before both Pipeline and Renderer in `initVulkan`.
+- End-of-session diff review on the refactor — 4 polish items flagged (none correctness-blocking):
+  1. `emplace_back` could pass args in-place instead of wrapping a temporary `vk::raii::Semaphore` (matches the tutorial-style pattern user quoted)
+  2. Stale `// vk::SemaphoreCreateInfo parameter` comment on the explicit form is now redundant
+  3. Trailing newline missing in `Renderer.h` (`\ No newline at end of file` in diff)
+  4. Naming style nit on `setUpPerImageResources` — recommended rename to `initializePerImageResources` for sibling-pair consistency with `initializeFrameData`
+
+**Key decisions made this session:**
+- Locked: never use bare `{}` for create-info arg in `vk::raii::*` two-arg constructors. Memory saved.
+- Locked: `FrameDescriptorLayout` design — standalone, single-purpose, self-contained, lives in `src/renderer/descriptors/`, owned by `Application`, consumed by Pipeline + Renderer via const ref.
+- Locked: when Ch06 textures arrive, they get a separate descriptor-layout class (likely `MaterialDescriptorLayout`) sibling to `FrameDescriptorLayout`, NOT additions inside this class.
+
+**Left off:**
+Refactor + bug fix complete and verified on Windows. `FrameDescriptorLayout` class agreed but not yet implemented — `src/renderer/descriptors/` folder doesn't exist; no constructor-param plumbing on Pipeline or Renderer yet. Q5+ of the Ch05 architecture (descriptor pool details, `updateUniformBuffer` location, MVP math timing) still pending.
+
+**Next session starts at:**
+Optionally fold the four polish items into a small commit first (in-place emplace_back, comment cleanup, trailing newline, rename to `initializePerImageResources`). Then implement `FrameDescriptorLayout` per the agreed design: create `src/renderer/descriptors/FrameDescriptorLayout.h/.cpp`, add `const FrameDescriptorLayout&` constructor parameter to both `GraphicsPipeline` and `Renderer`, store as member, consume the `vk::raii::DescriptorSetLayout` accessor at the right point in each (pipeline layout creation in GraphicsPipeline; descriptor set allocation in Renderer once the descriptor pool exists). Then resume Ch05 architecture at Q5 (descriptor pool details — size, flags, lifetime).
+
+**Open questions / notes:**
+- Refactor + bug fix is uncommitted in working tree. Worth a checkpoint commit before FrameDescriptorLayout work proper begins.
+- Naming style of `setUpPerImageResources` still open — recommended rename pending user decision.
+- OBS_HOOK warning still present (harmless, third-party).
+- Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands.

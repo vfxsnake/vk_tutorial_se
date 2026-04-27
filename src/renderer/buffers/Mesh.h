@@ -27,7 +27,7 @@ public:
     uint32_t getVertexCount() const;
     uint32_t getIndexCount() const;
     
-    void bind(vk::CommandBuffer& command_buffer) const;
+    void bind(vk::CommandBuffer command_buffer) const;
 
 
 private:
