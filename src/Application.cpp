@@ -48,7 +48,7 @@ void Application::initVulkan()
     swapChain_ = std::make_unique<SwapChain>(*context_, window_);  //*context_ dereferencing of context as we need it as reference.
     graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, swapChain_->getFormat());
     renderer_ = std::make_unique<Renderer>(*context_);
-    renderer_->setupPerImageResources(swapChain_->getImageCount());
+    renderer_->initializePerImageResources(swapChain_->getImageCount());
  
     /*
         temporary definition of the vertex data
@@ -97,7 +97,7 @@ void Application::onResize()
     context_->getLogicalDevice().waitIdle();
     framebufferResized_ = false;
     swapChain_->recreate();
-    renderer_->setupPerImageResources(swapChain_->getImageCount());
+    renderer_->initializePerImageResources(swapChain_->getImageCount());
 }
 
 

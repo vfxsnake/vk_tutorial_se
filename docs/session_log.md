@@ -1014,3 +1014,49 @@ Optionally fold the four polish items into a small commit first (in-place emplac
 - Naming style of `setUpPerImageResources` still open — recommended rename pending user decision.
 - OBS_HOOK warning still present (harmless, third-party).
 - Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands.
+
+---
+
+## Session 37 — 2026-04-28
+
+**Start time:** 08:06 EDT
+**End time:** 09:30 EDT
+**Duration:** 1 hour 24 minutes
+
+**Covered:**
+- Confirmed all four polish items from session 36 are now in place: in-place `emplace_back`, intentional explanatory comment, trailing newline on `Renderer.h`, and rename `setUpPerImageResources` → `initializePerImageResources` (applied across `Renderer.h`, `Renderer.cpp`, two call sites in `Application.cpp`). User noted the explanatory comment on line 31 of `Renderer.cpp` is intentional.
+- Resumed Ch05 architecture discussion at Q5 (descriptor pool details). All sub-questions resolved:
+  - **Q5a (sizing):** `maxSets = MAX_FRAMES_IN_FLIGHT`, `poolSizes = [{eUniformBuffer, MAX_FRAMES_IN_FLIGHT}]`, `poolSizeCount = 1`. Clarified two framings: (1) one pool, multiple sets — not one pool per frame; (2) `poolSizeCount` = number of descriptor *types*, not "one per frame".
+  - **Q5b (flags):** `flags = {}` — no `eFreeDescriptorSet`. Reason: with the flag absent, `vk::raii::DescriptorSet`'s destructor becomes a no-op and the driver can use a cheaper bump allocator.
+  - **Q5c (lifetime):** Created in `Renderer` constructor (program-lifetime, swap-chain-independent). Did NOT belong in `initializePerImageResources` because the pool is indexed by `currentFrame_`, not `imageIndex` — different axis.
+- Q6 (UBO update flow) resolved:
+  - Slot has `updateUniformBuffer(const UniformBufferObject&)` — one-line `memcpy`. Path B2 chosen over A (Renderer inline) and C (Renderer pokes mapped pointer directly) because slot owns the mapped-pointer invariant; exposing it would leak.
+  - Caller chain: `Application` computes UBO each frame → passes `const UniformBufferObject&` into `Renderer::drawFrame` → routes to `slot.updateUniformBuffer(ubo)`.
+  - Placement inside `drawFrame`: between `resetFences()` (line 99) and `commandBuffer_.reset()` (line 102). User initially suggested "after `graphics_pipeline.record`"; I argued for the canonical placement and the user agreed — "update CPU-side state before recording GPU work that consumes it" reads more naturally top-to-bottom.
+- Q7 (MVP math + Y-flip) resolved:
+  - **Q7a:** Math lives in `Application` private helper `computeUniformBufferObject(extent, time_seconds) → UniformBufferObject` (migrates cleanly to `scene/Camera` later).
+  - **Q7b:** Wall-clock origin is an `Application` member `std::chrono::high_resolution_clock::time_point startTime_` (option a — explicit member, not function-local static).
+  - **Q7c:** Y-flip via **negative viewport height** (modern Vulkan 1.4 idiom), not the tutorial's `proj[1][1] *= -1`. Project-wide compile defs `GLM_FORCE_DEPTH_ZERO_TO_ONE` and `GLM_FORCE_RADIANS` added to `CMakeLists.txt`. User asked for elaborated comparison of the two approaches before deciding — settled on the modern path for cleaner debug/tooling story and fewer winding-order surprises.
+- Wrote `docs/vulkan_implementation_plan_05_uniform_buffers.md` — full decision table (Q1–Q7), folder structure, new files (`UniformBufferObject.h`, `FrameDescriptorLayout.h/.cpp`), modified files (`RenderFrameSlot`, `Renderer`, `GraphicsPipeline`, `Application`, `triangle.slang`, `CMakeLists.txt`), 10-step build order, smoke-test bar.
+- Wrote `docs/vulkan_learning_plan_05_uniform_buffers.md` — initially 4 milestones × 2 sessions = 8 sessions, ~16h.
+- User flagged the overlap honestly: Ch05 architecture discussion (sessions 35–37) had already covered substantial M1, M3, M4 theory. Pruned learning plan: marked redundant questions with ✅ + session reference, shortened theory sessions M1-A (1.5h → 45min), M3-A (1.5h → 1h), M4-A (2h → 1.25h). Total estimate revised to ~14h. Implementation sessions unchanged.
+
+**Key decisions made this session:**
+- All Ch05 architecture decisions Q5–Q7 locked (Q1–Q4 were already locked in sessions 35–36).
+- UBO update flow: B2 chosen — slot has a `memcpy` method, `Renderer` never touches `uniformMapped_`.
+- UBO write placement: between `resetFences()` and `commandBuffer_.reset()` — canonical "update before record".
+- Y-flip: negative viewport height (modern Vulkan idiom). `glm::perspective` matrix stays unmodified.
+- Project-wide compile defs: `GLM_FORCE_DEPTH_ZERO_TO_ONE`, `GLM_FORCE_RADIANS`.
+- Learning plan acknowledges overlap with architecture sessions; redundant questions marked ✅ rather than asked again.
+
+**Left off:**
+Architecture discussion fully complete. Implementation plan and learning plan written, reviewed, and accepted. Implementation has not started — no Ch05 code written yet beyond the prior session's `initializePerImageResources` rename.
+
+**Next session starts at:**
+Begin **M1 Session A (Theory)** of the Ch05 learning plan — `docs/vulkan_learning_plan_05_uniform_buffers.md`. Light session (~45min): re-read §05.00 layout half, re-read your answers to architecture Q4 (session 36), then answer the *fresh* questions M1-A Q3 (`pImmutableSamplers`), Q4 (`descriptorCount > 1` scenarios), Q5 (stage flags — runtime cost vs correctness signal), Q6 (pipeline-layout "bake-in" semantics), Q7 (Ch03→Ch05 `createPipelineLayout` trace), Q8 (destruction order on `Application`'s members).
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
+- Implementation plan and learning plan are uncommitted in working tree alongside any other doc changes — worth a `docs:` commit before M1-A.
+- Architecture-discussion overlap with theory sessions is unique to Ch05 (descriptor decisions required understanding the API first). Future chapters should aim to keep architecture decisions decoupled from theory teaching where possible.

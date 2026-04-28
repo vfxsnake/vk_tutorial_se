@@ -26,7 +26,7 @@ public:
 
     bool drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh);
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
-    void setupPerImageResources(uint32_t image_count);
+    void initializePerImageResources(uint32_t image_count);
 
 private:
     void createCommandPool();

@@ -28,13 +28,13 @@ void Renderer::createFinishedSemaphores(uint32_t image_count)
     renderFinishedSemaphores_.reserve(image_count);
     for (uint32_t i = 0; i < image_count; i++)
     {
-        //  emplace_back will call vk::raii::Semaphore's constructor with the parameters (logicalDevice, SemaphoreCreateInfo).           
+        // emplace_back will call vk::raii::Semaphore's constructor with the parameters (logicalDevice, SemaphoreCreateInfo).           
         renderFinishedSemaphores_.emplace_back(context_.getLogicalDevice(), vk::SemaphoreCreateInfo()); 
     }
 }
 
 
-void Renderer::setupPerImageResources(uint32_t image_count)
+void Renderer::initializePerImageResources(uint32_t image_count)
 {
     createFinishedSemaphores(image_count);
 }
