@@ -1060,3 +1060,31 @@ Begin **M1 Session A (Theory)** of the Ch05 learning plan — `docs/vulkan_learn
 - Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
 - Implementation plan and learning plan are uncommitted in working tree alongside any other doc changes — worth a `docs:` commit before M1-A.
 - Architecture-discussion overlap with theory sessions is unique to Ch05 (descriptor decisions required understanding the API first). Future chapters should aim to keep architecture decisions decoupled from theory teaching where possible.
+
+---
+
+## Session 38 — 2026-04-29
+
+**Start time:** 08:11 EDT
+**End time:** 09:22 EDT
+**Duration:** 1 hour 11 minutes
+
+**Covered:**
+- M1-A theory session completed in full (Ch05 — Descriptor Set Layout & Pipeline Integration)
+- Q3: `pImmutableSamplers` — for immutable sampler bindings only; inapplicable to UBO bindings; `nullptr` is not a placeholder but semantically correct
+- Q4: `descriptorCount > 1` — array of descriptors at one binding (e.g. bone matrices for skeletal animation); shader side uses array declaration; clarified vs multiple descriptor sets (different concept)
+- Q5: `stageFlags` — enforcement by validation layers + driver at compile time, not GPU at runtime; `eAllGraphics` misses driver optimization opportunities
+- Q6: Pipeline layout bake-in — immutable after creation; adding a new descriptor set requires destroy + recreate of both `PipelineLayout` and `Pipeline`; Ch06 sibling class approach avoids mid-life rebuild
+- Q7: `createPipelineLayout()` changes — `setLayoutCount = 1`, `pSetLayouts` from `FrameDescriptorLayout` accessor; `pushConstantRangeCount` stays 0
+- Q8: Destruction order — `renderer_` first, `graphicsPipeline_` second, `frameDescriptorLayout_` last (reverse declaration order in `Application.h`); user initially had the order inverted
+- Caught and corrected: after M1-A I incorrectly suggested jumping to M2-A theory, skipping M1-B implementation. User flagged the error. Feedback memory saved (`feedback_milestone_order.md`).
+
+**Left off:**
+M1-A complete. M1-B implementation not yet started.
+
+**Next session starts at:**
+M1-B implementation — follow the checklist in `docs/vulkan_learning_plan_05_uniform_buffers.md` under Milestone M1 Session B: create `src/renderer/descriptors/FrameDescriptorLayout.h/.cpp`, wire into `GraphicsPipeline` and `Renderer` constructors, update `Application::initVulkan()`, add to `CMakeLists.txt`, build and verify rectangle still renders.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
