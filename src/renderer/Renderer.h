@@ -11,6 +11,7 @@
 class VulkanContext;
 class SwapChain;
 class GraphicsPipeline;
+class FrameDescriptorLayout;
 
 
 class Renderer
@@ -18,7 +19,7 @@ class Renderer
 public:
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
-    Renderer(VulkanContext& context);
+    Renderer(VulkanContext& context, const FrameDescriptorLayout& frame_descriptor_layout);
 
     // Non Copyable (removing copyable constructors)
     Renderer(const Renderer&) = delete;
@@ -55,6 +56,7 @@ private:
 
     // private member variables
     VulkanContext& context_;
+    const FrameDescriptorLayout& frameDescriptorLayout_;
     vk::raii::CommandPool commandPool_ = nullptr;
     std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
     uint32_t currentFrame_ = 0;

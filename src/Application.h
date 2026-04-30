@@ -8,6 +8,7 @@
 // forward declarations
 class VulkanContext;
 class SwapChain;
+class FrameDescriptorLayout;
 class GraphicsPipeline;
 class Renderer;
 class Mesh;
@@ -40,6 +41,7 @@ private:
     // Vulkan objects order controls destruction order (reversed)
     std::unique_ptr<VulkanContext> context_;
     std::unique_ptr<SwapChain> swapChain_;
+    std::unique_ptr<FrameDescriptorLayout> frameDescriptorLayout_;
     std::unique_ptr<GraphicsPipeline> graphicsPipeline_;
     std::unique_ptr<Renderer> renderer_;
     std::unique_ptr<Mesh> mesh_;

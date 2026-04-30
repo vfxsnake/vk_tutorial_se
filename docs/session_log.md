@@ -1088,3 +1088,34 @@ M1-B implementation — follow the checklist in `docs/vulkan_learning_plan_05_un
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
+
+---
+
+## Session 39 — 2026-04-30
+
+**Start time:** 07:53 EDT
+**End time:** 10:14 EDT
+**Duration:** 2 hours 21 minutes
+
+**Covered:**
+- M1-B implementation complete — `FrameDescriptorLayout.h/.cpp` created in `src/renderer/descriptors/`
+- Reviewed and corrected `getLayout()` return type: `const vk::raii::DescriptorSetLayout` → `const vk::raii::DescriptorSetLayout&` (move-only type, must return by reference)
+- Fixed `frameDescriptionLayout_` typo in `Renderer.h` and `Renderer.cpp` → `frameDescriptorLayout_`
+- Wired `const FrameDescriptorLayout&` into `GraphicsPipeline` constructor — stored as member, consumed in `createPipelineLayout()` via `&*(frameDescriptorLayout_.getLayout())`
+- Wired `const FrameDescriptorLayout&` into `Renderer` constructor — stored as member (ready for M2 descriptor set allocation)
+- Added `frameDescriptorLayout_` to `Application.h` in correct declaration order (before pipeline and renderer)
+- Added `FrameDescriptorLayout` construction in `Application::initVulkan()` before pipeline and renderer
+- Added missing `#include "renderer/descriptors/FrameDescriptorLayout.h"` to `Application.cpp`
+- Added `FrameDescriptorLayout.cpp` to `CMakeLists.txt`
+- WSL2 and Windows builds clean. Rectangle renders correctly, no new validation errors. M1-B verified.
+
+**Left off:**
+M1 fully complete (A + B). M2-A theory session not yet started.
+
+**Next session starts at:**
+M2-A theory — read the descriptor pool and descriptor set sections in `docs/vulkan_learning_plan_05_uniform_buffers.md` under Milestone M2 Session A and answer the comprehension questions.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
+- Y-flip (negative viewport height) in `GraphicsPipeline::record()` line 240 still pending — M4-B change.

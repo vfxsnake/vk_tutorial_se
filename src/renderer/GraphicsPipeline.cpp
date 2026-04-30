@@ -3,12 +3,17 @@
 #include "utils/FileUtils.h"
 #include "renderer/buffers/Vertex.h"
 #include "renderer/buffers/Mesh.h"
+#include "renderer/descriptors/FrameDescriptorLayout.h"
 
 #include <stdexcept>
 #include <array>
 
 
-GraphicsPipeline::GraphicsPipeline(const VulkanContext& context, vk::Format color_format) : context_(context)
+GraphicsPipeline::GraphicsPipeline(
+    const VulkanContext& context, 
+    const FrameDescriptorLayout& frame_descriptor_layout, 
+    vk::Format color_format
+) : context_(context), frameDescriptorLayout_(frame_descriptor_layout)
 {
     createPipelineLayout();
     createPipeline(color_format);
@@ -17,7 +22,10 @@ GraphicsPipeline::GraphicsPipeline(const VulkanContext& context, vk::Format colo
 
 void GraphicsPipeline::createPipelineLayout()
 {
-    vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
+    vk::PipelineLayoutCreateInfo pipeline_layout_create_info{
+        .setLayoutCount = 1,
+        .pSetLayouts = &*(frameDescriptorLayout_.getLayout())
+    };
     layout_ = context_.getLogicalDevice().createPipelineLayout(pipeline_layout_create_info);
 }
 
@@ -184,8 +192,8 @@ void GraphicsPipeline::transitionImageLayout(
 
 void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view, const Mesh& mesh)
 {
-    vk::CommandBufferBeginInfo command_buffer_beging_info{};
-    if (command_buffer.begin(&command_buffer_beging_info) != vk::Result::eSuccess)
+    vk::CommandBufferBeginInfo command_buffer_begin_info{};
+    if (command_buffer.begin(&command_buffer_begin_info) != vk::Result::eSuccess)
     {
         throw std::runtime_error("unable to clean and start the command buffer begin");
     }

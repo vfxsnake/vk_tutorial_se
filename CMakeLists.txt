@@ -63,6 +63,7 @@ add_executable(VulkanTutorial
     src/renderer/GraphicsPipeline.cpp
     src/renderer/Renderer.cpp
     src/renderer/buffers/Mesh.cpp
+    src/renderer/descriptors/FrameDescriptorLayout.cpp
 )
 
 target_include_directories(VulkanTutorial PRIVATE

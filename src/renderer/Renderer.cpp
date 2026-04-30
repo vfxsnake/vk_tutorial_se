@@ -5,7 +5,10 @@
 
 #include <stdexcept>
 
-Renderer::Renderer(VulkanContext& context) : context_(context)
+Renderer::Renderer(
+    VulkanContext& context, 
+    const FrameDescriptorLayout& frame_descriptor_layout
+) : context_(context), frameDescriptorLayout_(frame_descriptor_layout)
 {
     createCommandPool();
     initializeFrameData();

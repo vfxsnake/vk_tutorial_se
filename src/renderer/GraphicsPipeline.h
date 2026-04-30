@@ -5,13 +5,14 @@
 
 // forward declaration
 class VulkanContext;
+class FrameDescriptorLayout;
 class Mesh;
 
 
 class GraphicsPipeline
 {
 public:
-    GraphicsPipeline(const VulkanContext& context, vk::Format color_format);
+    GraphicsPipeline(const VulkanContext& context, const FrameDescriptorLayout& frame_descriptor_layout, vk::Format color_format);
 
     // Non-copyable (removing copyable constructors)
     GraphicsPipeline(const GraphicsPipeline&) = delete;
@@ -40,6 +41,7 @@ private:
 
     // private member variables
     const VulkanContext& context_;
+    const FrameDescriptorLayout& frameDescriptorLayout_;
     vk::raii::PipelineLayout layout_ = nullptr;
     vk::raii::Pipeline pipeline_ = nullptr;
 };

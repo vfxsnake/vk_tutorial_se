@@ -6,6 +6,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/buffers/Mesh.h"
 #include "renderer/buffers/Vertex.h"
+#include "renderer/descriptors/FrameDescriptorLayout.h"
 
 
 Application::Application()
@@ -46,8 +47,9 @@ void Application::initVulkan()
 {
     context_ = std::make_unique<VulkanContext>(window_);
     swapChain_ = std::make_unique<SwapChain>(*context_, window_);  //*context_ dereferencing of context as we need it as reference.
-    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, swapChain_->getFormat());
-    renderer_ = std::make_unique<Renderer>(*context_);
+    frameDescriptorLayout_ = std::make_unique<FrameDescriptorLayout>(*context_);
+    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, *frameDescriptorLayout_,swapChain_->getFormat());
+    renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_);
     renderer_->initializePerImageResources(swapChain_->getImageCount());
  
     /*
