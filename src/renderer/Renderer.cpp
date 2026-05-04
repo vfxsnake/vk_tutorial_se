@@ -2,6 +2,7 @@
 #include "core/VulkanContext.h"
 #include "core/SwapChain.h"
 #include "GraphicsPipeline.h"
+#include "descriptors/FrameDescriptorLayout.h"
 
 #include <stdexcept>
 
@@ -11,6 +12,7 @@ Renderer::Renderer(
 ) : context_(context), frameDescriptorLayout_(frame_descriptor_layout)
 {
     createCommandPool();
+    createDescriptorPool();
     initializeFrameData();
 }
 
@@ -22,6 +24,24 @@ void Renderer::createCommandPool()
     };
 
     commandPool_ = vk::raii::CommandPool(context_.getLogicalDevice(), command_pool_create_info);
+}
+
+
+void Renderer::createDescriptorPool()
+{
+    vk::DescriptorPoolSize descriptor_pool_size{
+        .type = vk::DescriptorType::eUniformBuffer,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+    };
+
+    vk::DescriptorPoolCreateInfo descriptor_pool_create_info{
+        .flags = {}, // difference with the tutorial, our sets are allocated once, and live for the program life time, no need free them manually.
+        .maxSets = MAX_FRAMES_IN_FLIGHT,
+        .poolSizeCount = 1,
+        .pPoolSizes = &descriptor_pool_size  
+    };
+
+    descriptorPool_ = vk::raii::DescriptorPool(context_.getLogicalDevice(), descriptor_pool_create_info);
 }
 
 
@@ -62,12 +82,54 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
         render_frame_slot.inFlightFence_ = vk::raii::Fence(
             context_.getLogicalDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled}
         );
+
+        auto [uniform_buffer, uniform_buffer_memory] = createBuffer(
+            sizeof(UniformBufferObject), 
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+
+        // initializing frame slot uniform buffer
+        render_frame_slot.uniformBuffer_ = std::move(uniform_buffer);
+        render_frame_slot.uniformBufferMemory_ = std::move(uniform_buffer_memory);
+        render_frame_slot.uniformBufferMappedMemory_ = render_frame_slot.uniformBufferMemory_.mapMemory(0, sizeof(UniformBufferObject)) ;
+
+        // allocating descriptor set
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{
+            .descriptorPool = descriptorPool_,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &*(frameDescriptorLayout_.getLayout()),
+        };
+
+        std::vector<vk::raii::DescriptorSet> description_sets = context_.getLogicalDevice().allocateDescriptorSets(descriptor_set_allocate_info);
+        render_frame_slot.descriptorSet_ = std::move(description_sets.front());
+
+        vk::DescriptorBufferInfo descriptor_buffer_info{
+            .buffer = *render_frame_slot.uniformBuffer_,
+            .offset = 0,
+            .range = sizeof(UniformBufferObject)
+        };
+
+        vk::WriteDescriptorSet write_descriptor_set{
+            .dstSet = *render_frame_slot.descriptorSet_,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .pBufferInfo = &descriptor_buffer_info
+        };
+
+        context_.getLogicalDevice().updateDescriptorSets({write_descriptor_set}, {});
     }
 }
 
 
- bool Renderer::drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh)
- {
+bool Renderer::drawFrame(
+    SwapChain& swap_chain, 
+    GraphicsPipeline& graphics_pipeline, 
+    const Mesh& mesh, 
+    const UniformBufferObject& uniform_buffer_object
+)
+{
     // CPU side fence: waiting for gpu task finishes
     vk::Result fence_result = context_.getLogicalDevice().waitForFences(
         *(renderFrameSlots_[currentFrame_].inFlightFence_), 
@@ -100,6 +162,9 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 
     // reseting cpu fence to wait for the gpu
     context_.getLogicalDevice().resetFences(*(renderFrameSlots_[currentFrame_].inFlightFence_));
+
+    // updating uniform buffer
+    renderFrameSlots_[currentFrame_].updateUniformBuffer(uniform_buffer_object);
     
     // reseting the command buffer
     renderFrameSlots_[currentFrame_].commandBuffer_.reset();
@@ -107,6 +172,7 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
     // recording the command buffer using the graphics_pipeline record command
     graphics_pipeline.record(
         renderFrameSlots_[currentFrame_].commandBuffer_,
+        renderFrameSlots_[currentFrame_].descriptorSet_,
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
         swap_chain.getImageView(image_index),
@@ -158,11 +224,11 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
     return true;
- }
+}
 
 
- uint32_t Renderer::findMemoryType(uint32_t type_filter, vk::MemoryPropertyFlags properties) const
- {
+uint32_t Renderer::findMemoryType(uint32_t type_filter, vk::MemoryPropertyFlags properties) const
+{
     vk::PhysicalDeviceMemoryProperties memory_properties = context_.getPhysicalDevice().getMemoryProperties();
     for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
@@ -176,10 +242,10 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
     }
 
     throw std::runtime_error("failed to find suitable memory type!");
- }
+}
 
 
- std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Renderer::createBuffer(
+std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Renderer::createBuffer(
         vk::DeviceSize size, 
         vk::BufferUsageFlags usage, 
         vk::MemoryPropertyFlags memory_properties

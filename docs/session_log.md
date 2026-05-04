@@ -1119,3 +1119,73 @@ M2-A theory — read the descriptor pool and descriptor set sections in `docs/vu
 - OBS_HOOK warning still present (harmless, third-party).
 - Ch04 aspect-ratio distortion on resize will be fixed when Ch05 projection matrix lands (M4-B).
 - Y-flip (negative viewport height) in `GraphicsPipeline::record()` line 240 still pending — M4-B change.
+
+---
+
+## Session 40 — 2026-05-02
+
+**Start time:** 08:44 EDT
+**End time:** 09:44 EDT
+**Duration:** 1 hour 0 minutes
+
+**Covered:**
+- M2-A theory session completed in full (Ch05 — Per-Frame Uniform Buffers & Persistent Mapping)
+- Q1: `MAX_FRAMES_IN_FLIGHT` separate UBOs needed to avoid CPU overwriting GPU-in-use data — frame N+1 matrices would corrupt frame N render
+- Q2: Staging wrong for UBOs — updated every frame; persistent host-visible wins when update frequency is high; device-local worth staging cost only for once-per-program uploads
+- Q3: `unmapMemory` invalidates `uniformMapped_` pointer — subsequent `memcpy` is UB; RAII `vk::raii::DeviceMemory` destructor unmaps automatically
+- Q4: `eHostCoherent` guarantees CPU writes auto-visible to GPU; without it `vkFlushMappedMemoryRanges` / `vkInvalidateMappedMemoryRanges` required each frame
+- Q5: std140 `{ float t; mat4 model }` — C++ places `model` at offset 4, shader expects offset 16; fix with explicit `float padding[3]` or `alignas(16)` on the member
+- Q6: Exposing `uniformMapped_` publicly leaks the "pointer is always valid" invariant — `Renderer` would have to trust a guarantee it cannot enforce
+- Q7: `createBuffer(sizeof(UniformBufferObject), eUniformBuffer, eHostVisible | eHostCoherent)` — no `eTransferDst`, no staging step
+- Q8: Declaration order `uniformBuffer_`, `uniformMemory_`, `uniformMapped_` — dependency chain mapped pointer → memory → buffer; last declared destroyed first
+- One-paragraph summary written: staging has per-frame overhead; persistent host-visible wins when update frequency is every frame; rule of thumb is update frequency
+- Side discussion: no game-like resource exists for struct memory layout — ESR "Lost Art of Structure Packing" + Compiler Explorer recommended as fastest path
+
+**Left off:**
+M2-A complete. M2-B implementation not yet started.
+
+**Next session starts at:**
+M2-B implementation — follow the checklist in `docs/vulkan_learning_plan_05_uniform_buffers.md` under Milestone M2 Session B: create `UniformBufferObject.h`, extend `RenderFrameSlot.h` with four new members + `updateUniformBuffer()`, extend `Renderer::initializeFrameData()` to create + map UBO per slot, add `GLM_FORCE_DEPTH_ZERO_TO_ONE` and `GLM_FORCE_RADIANS` to `CMakeLists.txt`.
+
+**Open questions / notes:**
+- User identified a gap in struct memory layout / std140 alignment intuition — recommended: ESR "The Lost Art of Structure Packing" (catb.org/esr/structure-packing/), OpenGL Wiki std140 page, Compiler Explorer with `offsetof` assertions.
+- OBS_HOOK warning still present (harmless, third-party).
+- Ch04 aspect-ratio distortion on resize fixed in M4-B (projection matrix + negative viewport height).
+
+---
+
+## Session 41 — 2026-05-03
+
+**Start time:** 08:19 EDT
+**End time:** 10:39 EDT
+**Duration:** 2 hours 20 minutes
+
+**Covered:**
+- Reviewed and approved `UniformBufferObject.h` — three `mat4` members, no alignment issues, minor naming note (trailing underscore on POD wire-format type)
+- Reviewed and fixed `RenderFrameSlot.h` — added `<cstring>`, moved `updateUniformBuffer()` after member declarations
+- Confirmed `FrameDescriptorLayout.h` correct and unchanged from M1-B
+- Reviewed `Renderer.h` — all M2-B declarations in place (`createDescriptorPool`, `descriptorPool_`, `drawFrame` signature with UBO param)
+- Discussed forward declaration of `UniformBufferObject` — technically possible but no benefit since `RenderFrameSlot.h` already pulls in the full definition
+- Confirmed `createDescriptorPool()` placement in implementation plan is correct for this milestone
+- Reviewed and fixed `createDescriptorPool()` — corrected `flags` from `eFreeDescriptorSet` to `{}` per Q5b decision
+- Reviewed and completed `initializeFrameData()`:
+  - Added `createDescriptorPool()` call to constructor (was missing)
+  - Added `DescriptorBufferInfo` + `WriteDescriptorSet` + `updateDescriptorSets()` to wire each slot's descriptor set to its UBO buffer
+  - Fixed designated initializer order error (`descriptorCount` before `descriptorType`)
+  - Fixed `&descriptor_count` → `1` (value not pointer)
+
+**Left off:**
+M2-B partially complete — `initializeFrameData()` done. `drawFrame()` not yet updated (missing `const UniformBufferObject&` parameter, `slot.updateUniformBuffer(ubo)` call, and descriptor set passed to `graphics_pipeline.record()`).
+
+**Next session starts at:**
+Update `drawFrame()`: add `const UniformBufferObject& uniform_buffer_object` as fourth parameter, insert `renderFrameSlots_[currentFrame_].updateUniformBuffer(uniform_buffer_object)` between `resetFences` and `commandBuffer_.reset()`, and add `renderFrameSlots_[currentFrame_].descriptorSet_` as the new last argument to `graphics_pipeline.record()`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- After `drawFrame()`, remaining M2-B work: `GraphicsPipeline` changes (constructor + `record()` + viewport flip), `Application` changes, shader update, CMake GLM defines.
+
+---
+
+## Session 42 — 2026-05-04
+
+**Start time:** 07:58 EDT

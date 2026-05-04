@@ -6,12 +6,14 @@
 #include "RenderFrameSlot.h"
 #include "buffers/Vertex.h"
 #include "buffers/Mesh.h"
+#include "buffers/UniformBufferObject.h"
 
 // Forward Declarations
 class VulkanContext;
 class SwapChain;
 class GraphicsPipeline;
 class FrameDescriptorLayout;
+
 
 
 class Renderer
@@ -25,12 +27,19 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator =(const Renderer&) = delete;
 
-    bool drawFrame(SwapChain& swap_chain, GraphicsPipeline& graphics_pipeline, const Mesh& mesh);
+    bool drawFrame(
+        SwapChain& swap_chain, 
+        GraphicsPipeline& graphics_pipeline, 
+        const Mesh& mesh,
+        const UniformBufferObject& uniform_buffer_object
+    );
+    
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
     void initializePerImageResources(uint32_t image_count);
 
 private:
     void createCommandPool();
+    void createDescriptorPool();
     void initializeFrameData();
     void createFinishedSemaphores(uint32_t image_count);
     
@@ -56,9 +65,12 @@ private:
 
     // private member variables
     VulkanContext& context_;
-    const FrameDescriptorLayout& frameDescriptorLayout_;
     vk::raii::CommandPool commandPool_ = nullptr;
     std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
     uint32_t currentFrame_ = 0;
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores_;
+
+    const FrameDescriptorLayout& frameDescriptorLayout_;
+    vk::raii::DescriptorPool descriptorPool_ = nullptr;
+
 };

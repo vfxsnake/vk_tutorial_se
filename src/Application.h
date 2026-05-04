@@ -2,8 +2,12 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.hpp>
 #include <memory>
 #include <cstdint>
+#include <chrono>
+
+#include "renderer/buffers/UniformBufferObject.h"
 
 // forward declarations
 class VulkanContext;
@@ -28,11 +32,15 @@ private:
     void mainLoop();
     void onResize();
 
+    auto computeUniformBufferObject(vk::Extent2D extent, float time_seconds) const -> UniformBufferObject;
+
     // GLFW static callback - retrieves Application* via glfwGetWindowUserPointer
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
     static constexpr uint32_t WIDTH = 800;
     static constexpr uint32_t HEIGHT = 600;
+
+    std::chrono::high_resolution_clock::time_point startTime_;
 
     // Window - must be declared before Vulkan objects (destroyed last)
     GLFWwindow* window_ = nullptr;

@@ -12,13 +12,25 @@ class Mesh;
 class GraphicsPipeline
 {
 public:
-    GraphicsPipeline(const VulkanContext& context, const FrameDescriptorLayout& frame_descriptor_layout, vk::Format color_format);
+    GraphicsPipeline(
+        const VulkanContext& context, 
+        const FrameDescriptorLayout& frame_descriptor_layout, 
+        vk::Format color_format
+    );
 
     // Non-copyable (removing copyable constructors)
     GraphicsPipeline(const GraphicsPipeline&) = delete;
     GraphicsPipeline& operator =(const GraphicsPipeline&) = delete;
 
-    void record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view, const Mesh& mesh);
+    void record(
+        vk::CommandBuffer command_buffer, 
+        const vk::raii::DescriptorSet& descriptor_set, 
+        vk::Extent2D extent, 
+        vk::Image image, 
+        vk::ImageView image_view, 
+        const Mesh& mesh
+    );
+
     auto getPipeline() const -> const vk::raii::Pipeline&;
 
 private:

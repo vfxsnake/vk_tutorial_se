@@ -190,7 +190,14 @@ void GraphicsPipeline::transitionImageLayout(
     command_buffer.pipelineBarrier2(dependency_info);
 }
 
-void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D extent, vk::Image image,vk::ImageView image_view, const Mesh& mesh)
+void GraphicsPipeline::record(
+    vk::CommandBuffer command_buffer, 
+    const vk::raii::DescriptorSet& descriptor_set, 
+    vk::Extent2D extent, 
+    vk::Image image,
+    vk::ImageView image_view, 
+    const Mesh& mesh
+)
 {
     vk::CommandBufferBeginInfo command_buffer_begin_info{};
     if (command_buffer.begin(&command_buffer_begin_info) != vk::Result::eSuccess)
@@ -235,11 +242,22 @@ void GraphicsPipeline::record(vk::CommandBuffer command_buffer, vk::Extent2D ext
 
     command_buffer.beginRendering(rendering_info);
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
+    
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *layout_, 0, *descriptor_set, nullptr);
+
     command_buffer.setViewport(
         0, 
-        vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f)
+        vk::Viewport(
+            0.0f, // x 
+            static_cast<float>(extent.height), // y 
+            static_cast<float>(extent.width), // width
+            static_cast<float>(-extent.height), // negative height
+            0.0f, // min depth
+            1.0f // max depth
+        )
     );
     command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+    
     mesh.bind(command_buffer);
     command_buffer.drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0);
     command_buffer.endRendering();

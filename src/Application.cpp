@@ -1,5 +1,8 @@
 #include "Application.h"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "core/VulkanContext.h"
 #include "core/SwapChain.h"
 #include "renderer/GraphicsPipeline.h"
@@ -9,7 +12,7 @@
 #include "renderer/descriptors/FrameDescriptorLayout.h"
 
 
-Application::Application()
+Application::Application() : startTime_(std::chrono::high_resolution_clock::now())
 {
     initWindow();
     initVulkan();
@@ -75,10 +78,23 @@ void Application::mainLoop()
     while (!glfwWindowShouldClose(window_))
     {
         glfwPollEvents();
-        if (!(renderer_->drawFrame(*swapChain_, *graphicsPipeline_, *mesh_)) || framebufferResized_)
+
+        //  drawing frame
+        bool was_frame_drawn = renderer_->drawFrame(
+            *swapChain_, 
+            *graphicsPipeline_, 
+            *mesh_,
+            computeUniformBufferObject(
+                swapChain_->getExtent(), 
+                std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime_).count()
+            )
+        );
+
+        if (!was_frame_drawn || framebufferResized_)
         {
             onResize();
         }
+        
     }
 
     context_->getLogicalDevice().waitIdle();
@@ -111,4 +127,30 @@ void Application::framebufferResizeCallback(GLFWwindow* window, int width, int h
 {
     auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
     app->framebufferResized_ = true;
+}
+
+
+UniformBufferObject Application::computeUniformBufferObject(vk::Extent2D extent, float time_seconds) const
+{
+    UniformBufferObject model_view_projection;
+    model_view_projection.modelMatrix_ = glm::rotate(
+        glm::mat4(1.0f), // transformation matrix
+        time_seconds * glm::radians(90.0f), // angle in radiants
+        glm::vec3(0.0f, 0.0f, 1.0f) // rotation angle
+    );
+
+    model_view_projection.viewMatrix_ = glm::lookAt(
+        glm::vec3(2.0f, 2.0f, 2.0f), // look at from
+        glm::vec3(0.0f, 0.0f, 0.0f), // look at to
+        glm::vec3(0.0f, 0.0f, 1.0f) // up vector
+    );
+
+    model_view_projection.projectionMatrix_ = glm::perspective(
+        glm::radians(45.0f), // fov
+        extent.width / (float)extent.height, // aspect ratio
+        0.1f, // near clipping plane
+        10.0f // far clipping plane
+    );
+
+    return model_view_projection;
 }
