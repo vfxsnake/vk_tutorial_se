@@ -65,12 +65,14 @@ private:
 
     // private member variables
     VulkanContext& context_;
+    
     vk::raii::CommandPool commandPool_ = nullptr;
+    vk::raii::DescriptorPool descriptorPool_ = nullptr;
+    
+    const FrameDescriptorLayout& frameDescriptorLayout_;
     std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
+    
     uint32_t currentFrame_ = 0;
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores_;
-
-    const FrameDescriptorLayout& frameDescriptorLayout_;
-    vk::raii::DescriptorPool descriptorPool_ = nullptr;
 
 };

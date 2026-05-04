@@ -90,7 +90,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
         .cullMode = vk::CullModeFlagBits::eBack,
-        .frontFace = vk::FrontFace::eClockwise,
+        .frontFace = vk::FrontFace::eCounterClockwise,
         .depthBiasEnable = vk::False,
         .lineWidth = 1.0f
     };
@@ -251,7 +251,7 @@ void GraphicsPipeline::record(
             0.0f, // x 
             static_cast<float>(extent.height), // y 
             static_cast<float>(extent.width), // width
-            static_cast<float>(-extent.height), // negative height
+            -static_cast<float>(extent.height), // negative height
             0.0f, // min depth
             1.0f // max depth
         )

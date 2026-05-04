@@ -1189,3 +1189,31 @@ Update `drawFrame()`: add `const UniformBufferObject& uniform_buffer_object` as 
 ## Session 42 — 2026-05-04
 
 **Start time:** 07:58 EDT
+**End time:** 10:54 EDT
+**Duration:** 2 hours 56 minutes
+
+**Covered:**
+- Reviewed and confirmed `drawFrame()` correct — 4-parameter signature, `updateUniformBuffer()` call between `resetFences` and `commandBuffer_.reset()`, descriptor set forwarded to `record()`
+- Reviewed and corrected `GraphicsPipeline::record()` — added `descriptor_set` parameter, `bindDescriptorSets` after `bindPipeline`, fixed Y-flip viewport (y = extent.height, height = -extent.height)
+- Confirmed `GLM_FORCE_RADIANS` and `GLM_FORCE_DEPTH_ZERO_TO_ONE` already in `CMakeLists.txt`
+- Wrote `Application.h` — added `<chrono>`, `<vulkan/vulkan.hpp>`, `UniformBufferObject.h` include, `startTime_` member, `computeUniformBufferObject()` declaration
+- Discussed initialiser list vs in-class initialiser for `startTime_`
+- Wrote `Application.cpp` — `startTime_` in member initialiser list, `computeUniformBufferObject()` with `glm::rotate`/`lookAt`/`perspective`, `mainLoop()` updated with elapsed time + UBO passed to `drawFrame()`; fixed `glm::mat4(0.0f)` → `glm::mat4(1.0f)` identity matrix bug
+- Added `#include <glm/gtc/matrix_transform.hpp>` for `glm::rotate`, `lookAt`, `perspective`
+- Wrote `shaders/triangle.slang` — `ConstantBuffer<UniformBuffer>` binding, three-step MVP transform with named local variables
+- Fixed three bugs found during Windows build+run:
+  1. Viewport height unsigned negation overflow — `static_cast<float>(-extent.height)` → `-static_cast<float>(extent.height)`
+  2. Descriptor pool destruction order — moved `descriptorPool_` declaration before `renderFrameSlots_` in `Renderer.h`
+  3. `vkFreeDescriptorSets` missing flag — added `eFreeDescriptorSet` to pool flags (Q5b revised: `vk::raii::DescriptorSet` always calls `vkFreeDescriptorSets` on destruction, flag is required)
+  4. Black screen / winding order — changed `frontFace` from `eClockwise` to `eCounterClockwise` (negative viewport height flips effective winding order seen by rasterizer)
+- All verification tests pass: rectangle renders and rotates, aspect ratio correct on resize, validation layers silent
+
+**Left off:**
+M2 fully complete. Rectangle rotating with correct MVP transform, no validation errors.
+
+**Next session starts at:**
+Begin M3-A theory session — read §05.02 Alignment Requirements in `docs/vulkan_learning_plan_05_uniform_buffers.md` and answer the comprehension questions.
+
+**Open questions / notes:**
+- Q5b decision revised: `eFreeDescriptorSet` IS required when using `vk::raii::DescriptorSet` — the RAII destructor always calls `vkFreeDescriptorSets` regardless of pool flags.
+- OBS_HOOK warning still present (harmless, third-party).

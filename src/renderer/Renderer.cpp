@@ -35,7 +35,7 @@ void Renderer::createDescriptorPool()
     };
 
     vk::DescriptorPoolCreateInfo descriptor_pool_create_info{
-        .flags = {}, // difference with the tutorial, our sets are allocated once, and live for the program life time, no need free them manually.
+        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 
         .maxSets = MAX_FRAMES_IN_FLIGHT,
         .poolSizeCount = 1,
         .pPoolSizes = &descriptor_pool_size  
