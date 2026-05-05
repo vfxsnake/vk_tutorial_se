@@ -1217,3 +1217,51 @@ Begin M3-A theory session — read §05.02 Alignment Requirements in `docs/vulka
 **Open questions / notes:**
 - Q5b decision revised: `eFreeDescriptorSet` IS required when using `vk::raii::DescriptorSet` — the RAII destructor always calls `vkFreeDescriptorSets` regardless of pool flags.
 - OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 43 — 2026-05-05
+
+**Start time:** 07:55 EDT
+
+**Covered:**
+- Confirmed Chapter 05 fully complete (all 4 milestones done, M3-A and M4-A theory questions carried to Ch06 context)
+- Fetched all three Ch06 sub-pages; produced `docs/vulkan_chapter_06_texture_mapping.md`
+- Full architecture discussion — all decisions locked:
+  - `Texture` class in `renderer/textures/` owns all four handles (Image, Memory, ImageView, Sampler)
+  - GPU helpers stay on `Renderer` (private), consistent with `createBuffer`/`copyBuffer`
+  - `Renderer::createTexture(path)` factory returns `Texture`; Application owns it
+  - Two descriptor sets: set 0 = UBO (FrameDescriptorLayout), set 1 = texture (new `TextureDescriptorLayout`)
+  - `Renderer` owns texture descriptor pool + one set; wired via `bindTextureToDescriptor(const Texture&)`
+  - Vertex wire-format change in-place: `Vertex.h` gains `texCoord`, `GraphicsPipeline.cpp:64` → `auto`
+  - Destruction order in `Application` established
+- Produced `docs/vulkan_implementation_plan_06_texture_mapping.md`
+- Produced `docs/vulkan_learning_plan_06_texture_mapping.md` — 2 milestones, ~6h total
+
+**Left off:**
+Architecture discussion and all planning docs complete. Implementation not yet started.
+
+**Next session starts at:**
+M1-A theory session — read §06.00 and §06.01 in `docs/vulkan_chapter_06_texture_mapping.md`, then answer the 10 comprehension questions in the learning plan under Milestone M1 Session A.
+
+**Open questions / notes:**
+- Need a texture image file (`textures/texture.jpg`) before M2-B implementation — any JPEG or PNG works.
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 44 — 2026-05-05
+
+**Start time:** 09:02 EDT
+
+**Covered:**
+- (in progress)
+
+**Left off:**
+- (to be filled)
+
+**Next session starts at:**
+- (to be filled)
+
+**Open questions / notes:**
+- (to be filled)

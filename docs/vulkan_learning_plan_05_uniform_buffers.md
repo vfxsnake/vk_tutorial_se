@@ -338,10 +338,10 @@
 
 | Milestone | Theory ✓ | Impl ✓ | Tests Pass ✓ |
 |-----------|----------|--------|--------------|
-| M1 — Descriptor Set Layout & Pipeline Integration | [ ] | [ ] | [ ] |
-| M2 — Per-Frame Uniform Buffers & Persistent Mapping | [ ] | [ ] | [ ] |
-| M3 — Descriptor Pool & Per-Frame Sets | [ ] | [ ] | [ ] |
-| M4 — MVP Math, Y-flip, and End-to-End Spinning Rectangle | [ ] | [ ] | [ ] |
+| M1 — Descriptor Set Layout & Pipeline Integration | ✓ | ✓ | ✓ |
+| M2 — Per-Frame Uniform Buffers & Persistent Mapping | ✓ | ✓ | ✓ |
+| M3 — Descriptor Pool & Per-Frame Sets | ✓ (carried to Ch06) | ✓ | ✓ |
+| M4 — MVP Math, Y-flip, and End-to-End Spinning Rectangle | ✓ (carried to Ch06) | ✓ | ✓ |
 
 **Chapter complete when all rows are fully ticked.**
 
