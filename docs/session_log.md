@@ -1254,14 +1254,50 @@ M1-A theory session — read §06.00 and §06.01 in `docs/vulkan_chapter_06_text
 
 **Start time:** 09:02 EDT
 
+**End time:** 09:51 EDT
+**Duration:** 49 minutes
+
 **Covered:**
-- (in progress)
+- Session opened; M1-A context established
+- User read §06.00 and §06.01 in `docs/vulkan_chapter_06_texture_mapping.md`
 
 **Left off:**
-- (to be filled)
+M1-A reading complete. Comprehension questions not yet started.
 
 **Next session starts at:**
-- (to be filled)
+M1-A questions — work through all 10 comprehension questions in `docs/vulkan_learning_plan_06_texture_mapping.md` under Milestone M1 Session A, one at a time.
 
 **Open questions / notes:**
-- (to be filled)
+- Need a texture image file (`textures/texture.jpg`) before M2-B — any JPEG or PNG works.
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 45 — 2026-05-06
+
+**Start time:** 07:57 EDT
+**End time:** 09:35 EDT
+**Duration:** 1 hour 38 minutes
+
+**Covered:**
+- M1-A theory session complete — all 10 comprehension questions answered
+- Q2: `eOptimal` tiling uses implementation-defined internal layout (Morton curves etc.) — CPU can't compute texel offsets; GPU uses it for texture cache performance
+- Q3: Different hardware cache/compression units for transfer vs sampling paths; transition flushes one and sets up the other
+- Q4: First transition `eUndefined → eTransferDstOptimal` — `srcStageMask=eTopOfPipe`, `srcAccessMask={}` correct because no prior GPU command has touched the image; `eUndefined` means discard existing contents
+- Q5: Second transition `eTransferDstOptimal → eShaderReadOnlyOptimal` — `srcStageMask=eTransfer`, `dstStageMask=eFragmentShader`, `srcAccessMask=eTransferWrite`, `dstAccessMask=eShaderRead`; wrong masks cause silent corruption (hidden by `waitIdle` during development)
+- Q6: Explicit transition list prevents callers from supplying wrong barrier masks — the function owns the correct masks; only failure mode is unsupported transition pair (throws immediately)
+- Q7: `VkSampler` is a pure configuration object — one sampler reusable across all textures with same settings; concrete scenario: Ch08 second mesh texture reuses the same sampler
+- Q8: Validation layer fires at `vkCreateSampler` call time if `samplerAnisotropy` not enabled in logical device features
+- Q9: Texture image — usage: `eTransferDst | eSampled`; memory: `eDeviceLocal`; tiling: `eOptimal` (staging buffer uses linear — CPU writes sequentially; texture uses optimal — GPU cache performance)
+- Q10: `beginSingleTimeCommands` encapsulates: allocate buffer, move out of vector, begin recording (`eOneTimeSubmit`). `endSingleTimeCommands` encapsulates: submit to queue, `waitIdle()`
+- Full upload sequence with barrier masks sketched (10 steps, both transitions with all four mask values)
+
+**Left off:**
+M1-A complete. M1-B implementation not yet started.
+
+**Next session starts at:**
+M1-B implementation — work through the Implementation Checklist in `docs/vulkan_learning_plan_06_texture_mapping.md` under Milestone M1 Session B. Start with `src/renderer/textures/Texture.h/.cpp`, then `TextureDescriptorLayout`, then VulkanContext anisotropy changes, then all Renderer GPU helpers in order.
+
+**Open questions / notes:**
+- Need a texture image file (`textures/texture.jpg`) before M2-B — any JPEG or PNG works.
+- OBS_HOOK warning still present (harmless, third-party).
