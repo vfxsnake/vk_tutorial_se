@@ -1301,3 +1301,30 @@ M1-B implementation — work through the Implementation Checklist in `docs/vulka
 **Open questions / notes:**
 - Need a texture image file (`textures/texture.jpg`) before M2-B — any JPEG or PNG works.
 - OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 46 — 2026-05-07
+
+**Start time:** 08:19 EDT
+
+**End time:** 09:38 EDT
+**Duration:** 1 hour 19 minutes
+
+**Covered:**
+- Reviewed and approved `Texture.h` — move-only, two accessors, four RAII members
+- Reviewed and fixed `Texture.cpp` — added `std::move` on all four constructor parameters
+- Reviewed and approved `TextureDescriptorLayout.h` — class rename from `TextureDescriptor`, `= nullptr` on `layout_`
+- Discussed generic `DescriptorLayout` abstraction — deferred to "Building a Simple Engine" phase (real usage will reveal the right shape)
+- Discussed inheritance vs composition for descriptor layouts — composition wins; no polymorphism needed here
+- Reviewed and approved `TextureDescriptorLayout.cpp` — correct binding, type, stage flags, include path matches sibling
+
+**Left off:**
+M1-B implementation partially complete — `Texture.h/.cpp` and `TextureDescriptorLayout.h/.cpp` done. `VulkanContext` anisotropy changes not yet started.
+
+**Next session starts at:**
+Step 3 of build order — `VulkanContext` anisotropy changes: add `samplerAnisotropy == VK_TRUE` check to `isDeviceSuitable()`, add `samplerAnisotropy = vk::True` to `createLogicalDevice()` feature chain.
+
+**Open questions / notes:**
+- Need a texture image file (`textures/texture.jpg`) before M2-B — any JPEG or PNG works.
+- OBS_HOOK warning still present (harmless, third-party).
