@@ -1306,6 +1306,7 @@ M1-B implementation — work through the Implementation Checklist in `docs/vulka
 
 ## Session 46 — 2026-05-07
 
+
 **Start time:** 08:19 EDT
 
 **End time:** 09:38 EDT
@@ -1327,4 +1328,83 @@ Step 3 of build order — `VulkanContext` anisotropy changes: add `samplerAnisot
 
 **Open questions / notes:**
 - Need a texture image file (`textures/texture.jpg`) before M2-B — any JPEG or PNG works.
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 47 — 2026-05-08
+
+**Start time:** 14:57 EDT
+**End time:** 17:05 EDT
+**Duration:** 2 hours 8 minutes
+
+**Covered:**
+- Session recovered after unexpected close mid-session
+- `VulkanContext` anisotropy changes confirmed complete (`isDeviceSuitable` + `createLogicalDevice`)
+- Fixed duplicate `descriptorPool_` member in `Renderer.h` — removed stale duplicate added during session recovery
+- Fixed `endSingleTimeCommands` typo (lowercase `t`) in both `Renderer.h` and `Renderer.cpp`
+- `beginSingleTimeCommands()` confirmed complete
+- `endSingleTimeCommands()` implemented — `end()`, submit, `waitIdle()`
+- `createImage()` implemented — mirrors `createBuffer()` pattern; fixed `bindMemory(*image_memory, 0)` dereference
+- Noted stb_image include (`#define STB_IMAGE_IMPLEMENTATION`) goes in `Renderer.cpp` when `createTexture()` is reached
+
+**Left off:**
+M1-B implementation in progress. GPU helpers `beginSingleTimeCommands` + `endSingleTimeCommands` + `createImage` done. `createImageView()` not yet started.
+
+**Next session starts at:**
+Implement `createImageView()` — `ImageViewCreateInfo` for 2D image, `eColor` aspect, `subresourceRange` with all counts = 1, returns `vk::raii::ImageView`.
+
+**Open questions / notes:**
+- `descriptorSet_` in `Renderer.h` is a placeholder for the texture descriptor set — texture descriptor pool will be added when `bindTextureToDescriptor()` is implemented.
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 48 — 2026-05-09
+
+**Start time:** 13:11 EDT
+**End time:** 15:06 EDT
+**Duration:** 1 hour 55 minutes
+
+**Covered:**
+- Implemented `createImageView()` — `ImageViewCreateInfo` for 2D color image, explicit baseMipLevel/baseArrayLayer zeros
+- Implemented `transitionImageLayout()` — both barrier transitions with correct src/dst stage and access masks, explicit subresourceRange zeros
+- Implemented `copyBufferToImage()` — tightly packed `BufferImageCopy`, eTransferDstOptimal layout, begin/end single time command pattern
+- Implemented `createSampler()` — linear filtering, repeat address mode, anisotropy enabled with device max, unnormalizedCoordinates/compareEnable false by default
+- Started `createTexture()` — stbi_load with STBI_rgb_alpha, null check, image_size calculation (width × height × 4)
+- Discussed why hardcoded `4` is correct (STBI_rgb_alpha forces 4 channels regardless of source file)
+
+**Left off:**
+`createTexture()` partially written — stbi_load and image_size done. Staging buffer, createImage, transitions, copyBufferToImage, createImageView, createSampler, and Texture construction not yet written.
+
+**Next session starts at:**
+Continue `createTexture()` — create staging buffer with `createBuffer(image_size, eTransferSrc, eHostVisible | eHostCoherent)`, copy pixels in, free stb data, then call `createImage()`, two `transitionImageLayout()` calls, `copyBufferToImage()`, `createImageView()`, `createSampler()`, and return `Texture(...)` with all four moved handles.
+
+**Open questions / notes:**
+- `#define STB_IMAGE_IMPLEMENTATION` must be added at the top of `Renderer.cpp` before other includes (noted session 47).
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 49 — 2026-05-11
+
+**Start time:** 08:05 EDT
+**End time:** 09:25 EDT
+**Duration:** 1 hour 20 minutes
+
+**Covered:**
+- Completed `createTexture()` — transitions, `copyBufferToImage`, `createImageView`, `createSampler`, `Texture` construction with all four moved handles
+- Style fixes on `createTexture()`: explicit `*` dereference on all RAII-to-raw-handle conversions, `static_cast<uint32_t>` on width/height, `[[maybe_unused]]` on `texture_channels`
+- Updated `Renderer.h` — added `class TextureDescriptorLayout` forward declaration, `const TextureDescriptorLayout&` member, `textureDescriptorPool_`, renamed `descriptorSet_` → `textureDescriptorSet_`, updated constructor signature
+- Added `createTextureDescriptorPool()` private method — pool with `eCombinedImageSampler`, `maxSets=1`, `eFreeDescriptorSet`; allocates `textureDescriptorSet_` from pool using `TextureDescriptorLayout::getLayout()`
+- Updated `Renderer.cpp` constructor — new parameter, initializer list entry for `textureDescriptorLayout_`, `createTextureDescriptorPool()` call added after `createDescriptorPool()`
+- Implemented `bindTextureToDescriptor(const Texture&)` — `DescriptorImageInfo` with sampler + imageView + `eShaderReadOnlyOptimal`, `WriteDescriptorSet` for set 1 binding 0, `updateDescriptorSets`
+
+**Left off:**
+All `Renderer` Ch06 changes complete. `GraphicsPipeline` not yet touched.
+
+**Next session starts at:**
+Step 5 of build order — update `GraphicsPipeline.h`: add `class TextureDescriptorLayout` forward declaration, add `const TextureDescriptorLayout& texture_descriptor_layout` constructor parameter, add `textureDescriptorLayout_` member, update `record()` signature to add `const vk::raii::DescriptorSet& texture_descriptor_set`. Then update `GraphicsPipeline.cpp`: store member in constructor, update `createPipelineLayout()` to `setLayoutCount=2` with `std::array` of both layout handles, update `bindDescriptorSets` in `record()` to bind both sets.
+
+**Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).

@@ -256,7 +256,8 @@ bool VulkanContext::isDeviceSuitable(const vk::raii::PhysicalDevice& physical_de
                                                            vk::PhysicalDeviceVulkan13Features, 
                                                            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT >();
 
-    bool supports_required_features = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+    bool supports_required_features = features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
+                                      features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
                                       features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
                                       features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
     
@@ -291,7 +292,7 @@ void VulkanContext::createLogicalDevice()
                         vk::PhysicalDeviceVulkan13Features, 
                         vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
                     > feature_chain = {
-		    {},                                                   // vk::PhysicalDeviceFeatures2
+		    {.features{.samplerAnisotropy = true}},               // vk::PhysicalDeviceFeatures2
 		    {.synchronization2 = true, .dynamicRendering = true}, // vk::PhysicalDeviceVulkan13Features
 		    {.extendedDynamicState = true}                        // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
 		};
