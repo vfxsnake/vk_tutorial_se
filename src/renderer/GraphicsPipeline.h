@@ -7,6 +7,7 @@
 class VulkanContext;
 class FrameDescriptorLayout;
 class Mesh;
+class TextureDescriptorLayout;
 
 
 class GraphicsPipeline
@@ -14,7 +15,8 @@ class GraphicsPipeline
 public:
     GraphicsPipeline(
         const VulkanContext& context, 
-        const FrameDescriptorLayout& frame_descriptor_layout, 
+        const FrameDescriptorLayout& frame_descriptor_layout,
+        const TextureDescriptorLayout& texture_descriptor_layout,
         vk::Format color_format
     );
 
@@ -24,7 +26,8 @@ public:
 
     void record(
         vk::CommandBuffer command_buffer, 
-        const vk::raii::DescriptorSet& descriptor_set, 
+        const vk::raii::DescriptorSet& descriptor_set,
+        const vk::raii::DescriptorSet& texture_descriptor_set,
         vk::Extent2D extent, 
         vk::Image image, 
         vk::ImageView image_view, 
@@ -54,6 +57,7 @@ private:
     // private member variables
     const VulkanContext& context_;
     const FrameDescriptorLayout& frameDescriptorLayout_;
+    const TextureDescriptorLayout& textureDescriptorLayout_;
     vk::raii::PipelineLayout layout_ = nullptr;
     vk::raii::Pipeline pipeline_ = nullptr;
 };

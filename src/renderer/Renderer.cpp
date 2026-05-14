@@ -209,6 +209,7 @@ bool Renderer::drawFrame(
     graphics_pipeline.record(
         renderFrameSlots_[currentFrame_].commandBuffer_,
         renderFrameSlots_[currentFrame_].descriptorSet_,
+        textureDescriptorSet_,
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
         swap_chain.getImageView(image_index),

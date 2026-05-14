@@ -64,6 +64,8 @@ add_executable(VulkanTutorial
     src/renderer/Renderer.cpp
     src/renderer/buffers/Mesh.cpp
     src/renderer/descriptors/FrameDescriptorLayout.cpp
+    src/renderer/descriptors/TextureDescriptorLayout.cpp
+    src/renderer/textures/Texture.cpp
 )
 
 target_include_directories(VulkanTutorial PRIVATE
@@ -109,3 +111,12 @@ add_custom_command(
 
 add_custom_target(Shaders DEPENDS ${CMAKE_BINARY_DIR}/shaders/triangle.spv)
 add_dependencies(VulkanTutorial Shaders)
+
+#Copy assets to build output directory
+add_custom_command(
+    TARGET VulkanTutorial POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/textures
+        ${CMAKE_BINARY_DIR}/textures
+    COMMENT "Copying textures"
+)

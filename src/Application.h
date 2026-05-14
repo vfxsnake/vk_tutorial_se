@@ -16,6 +16,8 @@ class FrameDescriptorLayout;
 class GraphicsPipeline;
 class Renderer;
 class Mesh;
+class TextureDescriptorLayout;
+class Texture;
 
 class Application
 {
@@ -50,7 +52,9 @@ private:
     std::unique_ptr<VulkanContext> context_;
     std::unique_ptr<SwapChain> swapChain_;
     std::unique_ptr<FrameDescriptorLayout> frameDescriptorLayout_;
+    std::unique_ptr<TextureDescriptorLayout> textureDescriptorLayout_;
     std::unique_ptr<GraphicsPipeline> graphicsPipeline_;
     std::unique_ptr<Renderer> renderer_;
+    std::unique_ptr<Texture> texture_;
     std::unique_ptr<Mesh> mesh_;
 };

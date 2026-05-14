@@ -4,6 +4,8 @@ My take implementing the vulkan tutorial into a well defined project, from the g
 
 for running it in windows, use:
 
+rmdir /s /q build 
+
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 
 
 cmake --build build --config Debug

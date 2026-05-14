@@ -9,6 +9,7 @@ struct Vertex
 {
     glm::vec2 pos;
     glm::vec3 color;
+    glm::vec2 uv; // texture coordinates
 
     static vk::VertexInputBindingDescription getBindingDescription()
     {
@@ -21,7 +22,7 @@ struct Vertex
         return binding_description;
     }
 
-    static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+    static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
     {
         vk::VertexInputAttributeDescription position_description{
             .location = 0,
@@ -37,7 +38,14 @@ struct Vertex
             .offset = offsetof(Vertex, color)
         };
 
-        return {position_description, color_description};
+        vk::VertexInputAttributeDescription uv_description{
+            .location =2,
+            .binding = 0,
+            .format = vk::Format::eR32G32Sfloat,
+            .offset = offsetof(Vertex, uv)
+        };
+
+        return {position_description, color_description, uv_description};
     }
 };
 

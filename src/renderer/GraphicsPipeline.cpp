@@ -4,6 +4,7 @@
 #include "renderer/buffers/Vertex.h"
 #include "renderer/buffers/Mesh.h"
 #include "renderer/descriptors/FrameDescriptorLayout.h"
+#include "renderer/descriptors/TextureDescriptorLayout.h"
 
 #include <stdexcept>
 #include <array>
@@ -11,9 +12,12 @@
 
 GraphicsPipeline::GraphicsPipeline(
     const VulkanContext& context, 
-    const FrameDescriptorLayout& frame_descriptor_layout, 
+    const FrameDescriptorLayout& frame_descriptor_layout,
+    const TextureDescriptorLayout& texture_descriptor_layout,
     vk::Format color_format
-) : context_(context), frameDescriptorLayout_(frame_descriptor_layout)
+) : context_(context), 
+    frameDescriptorLayout_(frame_descriptor_layout),
+    textureDescriptorLayout_(texture_descriptor_layout)
 {
     createPipelineLayout();
     createPipeline(color_format);
@@ -22,9 +26,14 @@ GraphicsPipeline::GraphicsPipeline(
 
 void GraphicsPipeline::createPipelineLayout()
 {
+    std::array<vk::DescriptorSetLayout, 2> descriptor_layouts{
+        *frameDescriptorLayout_.getLayout(),
+        *textureDescriptorLayout_.getLayout()
+    };
+
     vk::PipelineLayoutCreateInfo pipeline_layout_create_info{
-        .setLayoutCount = 1,
-        .pSetLayouts = &*(frameDescriptorLayout_.getLayout())
+        .setLayoutCount = static_cast<uint32_t>(descriptor_layouts.size()),
+        .pSetLayouts = descriptor_layouts.data()
     };
     layout_ = context_.getLogicalDevice().createPipelineLayout(pipeline_layout_create_info);
 }
@@ -61,7 +70,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
 
     // Getting descriptions directly from Vertex class static functions.
     vk::VertexInputBindingDescription vertex_binding_description = Vertex::getBindingDescription();
-    std::array<vk::VertexInputAttributeDescription, 2> vertex_attribute_descriptions =  Vertex::getAttributeDescriptions();
+    auto vertex_attribute_descriptions =  Vertex::getAttributeDescriptions(); // std::array<vk::VertexInputAttributeDescription, n> n: number of attributes 
     
     vk::PipelineVertexInputStateCreateInfo vertex_input_info{
         .vertexBindingDescriptionCount = 1,
@@ -192,7 +201,8 @@ void GraphicsPipeline::transitionImageLayout(
 
 void GraphicsPipeline::record(
     vk::CommandBuffer command_buffer, 
-    const vk::raii::DescriptorSet& descriptor_set, 
+    const vk::raii::DescriptorSet& descriptor_set,
+    const vk::raii::DescriptorSet& texture_descriptor_set,
     vk::Extent2D extent, 
     vk::Image image,
     vk::ImageView image_view, 
@@ -243,7 +253,17 @@ void GraphicsPipeline::record(
     command_buffer.beginRendering(rendering_info);
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
     
-    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *layout_, 0, *descriptor_set, nullptr);
+    std::array<vk::DescriptorSet, 2> descriptor_sets{
+        *descriptor_set,
+        *texture_descriptor_set
+    };
+    command_buffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        *layout_,
+        0, 
+        descriptor_sets,
+        {}
+    );
 
     command_buffer.setViewport(
         0, 

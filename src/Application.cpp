@@ -10,6 +10,8 @@
 #include "renderer/buffers/Mesh.h"
 #include "renderer/buffers/Vertex.h"
 #include "renderer/descriptors/FrameDescriptorLayout.h"
+#include "renderer/descriptors/TextureDescriptorLayout.h"
+#include "renderer/textures/Texture.h"
 
 
 Application::Application() : startTime_(std::chrono::high_resolution_clock::now())
@@ -51,18 +53,23 @@ void Application::initVulkan()
     context_ = std::make_unique<VulkanContext>(window_);
     swapChain_ = std::make_unique<SwapChain>(*context_, window_);  //*context_ dereferencing of context as we need it as reference.
     frameDescriptorLayout_ = std::make_unique<FrameDescriptorLayout>(*context_);
-    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, *frameDescriptorLayout_,swapChain_->getFormat());
-    renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_);
+    textureDescriptorLayout_ = std::make_unique<TextureDescriptorLayout>(*context_);
+    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_, swapChain_->getFormat());
+    renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_);
     renderer_->initializePerImageResources(swapChain_->getImageCount());
- 
+
+    // creating and binding the texture
+    texture_ = std::make_unique<Texture>(renderer_->createTexture("textures/texture.jpg"));
+    renderer_->bindTextureToDescriptor(*texture_);
     /*
         temporary definition of the vertex data
     */
     const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+    };
 
     /*
         temporary definition of the index data

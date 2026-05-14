@@ -44,6 +44,7 @@ public:
     void initializePerImageResources(uint32_t image_count);
 
     Texture createTexture(const std::string& path);
+    void bindTextureToDescriptor(const Texture& texture);
 
 private:
     void createCommandPool();
@@ -101,8 +102,6 @@ private:
     );
 
     auto createSampler() -> vk::raii::Sampler;
-
-    void bindTextureToDescriptor(const Texture& texture);
 
     // private member variables
     VulkanContext& context_;

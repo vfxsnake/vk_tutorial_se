@@ -1408,3 +1408,65 @@ Step 5 of build order — update `GraphicsPipeline.h`: add `class TextureDescrip
 
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 50 — 2026-05-12
+
+**Start time:** 08:41 EDT
+**End time:** 10:39 EDT
+**Duration:** 1 hour 58 minutes
+
+**Covered:**
+- Reviewed and approved `GraphicsPipeline.h` — `TextureDescriptorLayout` forward declaration, constructor param, member, `record()` updated with `texture_descriptor_set`
+- Reviewed and fixed `GraphicsPipeline::createPipelineLayout()` — corrected `std::array<vk::DescriptorSetLayout&,2>` → named local `std::array<vk::DescriptorSetLayout,2>`, `.data()` for pointer, `*raii_obj` handle extraction
+- Reviewed and approved `GraphicsPipeline` constructor — all three ref members in initializer list
+- Applied architecture decision: `auto vertex_attribute_descriptions` on line 73 (prevents break when `Vertex` gains `texCoord`)
+- Fixed dynamic offsets `nullptr` → `{}` in `bindDescriptorSets`
+- Reviewed and approved `Vertex.h` — `uv` field added at location 2, format `eR32G32Sfloat`, `offsetof` correct; fixed bug where `uv_description.location` was `1` instead of `2`
+- Updated `triangle.slang` — added `uv` to `VertexInput` and `VertexOutput`, added `[vk::binding(0,0)]` on UBO and `[vk::binding(0,1)]` on sampler, renamed `texture` → `texture_sampler`; discussed why explicit binding annotations are needed (two descriptor sets vs tutorial's single set)
+- Added `TextureDescriptorLayout.cpp` and `Texture.cpp` to `CMakeLists.txt` (already present)
+- Updated `Application.h` — added `TextureDescriptorLayout` forward declaration and `textureDescriptorLayout_` member in correct destruction order
+- Updated `Application.cpp` — added include, constructed `textureDescriptorLayout_` before pipeline/renderer, passed to both constructors; fixed `&textureDescriptorLayout_` → `*textureDescriptorLayout_` bug; updated vertex data with UV coordinates
+- Fixed `Renderer.cpp` — added `textureDescriptorSet_` to `graphics_pipeline.record()` call
+- Build successful (compile clean)
+
+**Left off:**
+Build compiles. Not yet run — missing texture file (`textures/texture.jpg`) and CMake copy command to deploy it to the build directory.
+
+**Next session starts at:**
+1. Add any JPEG/PNG as `textures/texture.jpg` in project root
+2. Add POST_BUILD copy command to `CMakeLists.txt` to copy `textures/` dir to `$<TARGET_FILE_DIR:VulkanTutorial>/textures`
+3. Rebuild and run — verify textured rectangle appears on screen
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- `Application` still needs `renderer_->createTexture()` and `renderer_->bindTextureToDescriptor()` calls in `initVulkan()` — these are M2-B steps (wiring the texture into the descriptor set).
+
+---
+
+## Session 51 — 2026-05-13
+
+**Start time:** 16:26 EDT
+**End time:** 17:20 EDT
+**Duration:** 54 minutes
+
+**Covered:**
+- Added `textures/texture.jpg` to project (user-supplied)
+- Added CMake `POST_BUILD` copy command to deploy `textures/` to build output; fixed `&{CMAKE_COMMAND}` typo → `${CMAKE_COMMAND}`
+- Fixed copy destination from `$<TARGET_FILE_DIR:VulkanTutorial>/textures` → `${CMAKE_BINARY_DIR}/textures` to match the working directory (`build/`) used by the Visual Studio debugger (same level as `build/shaders/`)
+- Added `class Texture` forward declaration and `std::unique_ptr<Texture> texture_` member to `Application.h` (correct destruction order: `mesh_` → `texture_` → `renderer_`)
+- Added `#include "renderer/textures/Texture.h"` to `Application.cpp`
+- Added `createTexture()` and `bindTextureToDescriptor()` calls to `Application::initVulkan()` before mesh creation
+- Windows build clean; all M2 verification tests pass: texture visible, rotates with geometry, correct aspect ratio on resize, right-side up, minimise/restore clean, validation layers silent
+
+**Left off:**
+Chapter 06 (Texture Mapping) fully complete — all milestones done, all verification tests pass.
+
+**Next session starts at:**
+Begin Chapter 07 — request the markdown for chapter 07.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+
+

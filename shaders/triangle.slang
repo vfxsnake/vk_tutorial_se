@@ -1,6 +1,7 @@
 struct VertexInput {
     float2 position;
     float3 color;
+    float2 uv;
 };
 
 struct UniformBuffer {
@@ -8,11 +9,13 @@ struct UniformBuffer {
     float4x4 view;
     float4x4 projection;
 };
+[vk::binding(0, 0)]
 ConstantBuffer<UniformBuffer> uniform_buffer_object;
 
 struct VertexOutput {
     float4 position : SV_Position;
     float3 color;
+    float2 uv;
 };
 
 
@@ -25,13 +28,17 @@ VertexOutput vertMain(VertexInput vertex_in) {
 
     out_vertex.position = mul(uniform_buffer_object.projection, view_position);
     out_vertex.color = vertex_in.color;
+    out_vertex.uv = vertex_in.uv;
     return out_vertex;
 }
 
+[vk::binding(0, 1)]
+Sampler2D texture_sampler;
 
 [shader("fragment")]
 float4 fragMain(VertexOutput vertex_in) : SV_Target
 {
-    float3 color = vertex_in.color;
-    return float4(color, 1.0);
+    // float3 color = vertex_in.color;
+    // return float4(color, 1.0);
+    return texture_sampler.Sample(vertex_in.uv);
 }
