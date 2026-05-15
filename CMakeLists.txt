@@ -66,7 +66,7 @@ add_executable(VulkanTutorial
     src/renderer/descriptors/FrameDescriptorLayout.cpp
     src/renderer/descriptors/TextureDescriptorLayout.cpp
     src/renderer/image_resources/Texture.cpp
-    src/renderer/image_resources/DepthImage.h
+    src/renderer/image_resources/DepthImage.cpp
 )
 
 target_include_directories(VulkanTutorial PRIVATE
