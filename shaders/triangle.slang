@@ -1,5 +1,5 @@
 struct VertexInput {
-    float2 position;
+    float3 position;
     float3 color;
     float2 uv;
 };
@@ -23,7 +23,7 @@ struct VertexOutput {
 VertexOutput vertMain(VertexInput vertex_in) {
     VertexOutput out_vertex;
 
-    float4 world_space_position = mul(uniform_buffer_object.model, float4(vertex_in.position, 0.0, 1.0));
+    float4 world_space_position = mul(uniform_buffer_object.model, float4(vertex_in.position, 1.0));
     float4 view_position = mul(uniform_buffer_object.view, world_space_position);
 
     out_vertex.position = mul(uniform_buffer_object.projection, view_position);
@@ -39,6 +39,6 @@ Sampler2D texture_sampler;
 float4 fragMain(VertexOutput vertex_in) : SV_Target
 {
     // float3 color = vertex_in.color;
-    // return float4(color, 1.0);
+    // return float4(color, 1.0);  // vertex color if needed
     return texture_sampler.Sample(vertex_in.uv);
 }

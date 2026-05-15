@@ -7,7 +7,7 @@
 #include "buffers/Vertex.h"
 #include "buffers/Mesh.h"
 #include "buffers/UniformBufferObject.h"
-#include "textures/Texture.h"
+#include "image_resources/Texture.h"
 
 // Forward Declarations
 class VulkanContext;

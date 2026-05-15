@@ -344,3 +344,40 @@ uint32_t VulkanContext::getQueueFamilyIndex() const
     return queueFamilyIndex_;
 }
 
+
+vk::Format VulkanContext::findSupportedFormat(
+        const std::vector<vk::Format>& format_candidates, 
+        vk::ImageTiling tiling,
+        vk::FormatFeatureFlags features
+    ) const
+{
+    for (auto& format : format_candidates)
+    {
+        auto properties = physicalDevice_.getFormatProperties(format);
+        if (
+            ((tiling == vk::ImageTiling::eLinear) && ((properties.linearTilingFeatures & features) == features)) ||
+            ((tiling == vk::ImageTiling::eOptimal) && ((properties.optimalTilingFeatures & features) == features))
+        )
+        {
+            return format;
+        }
+    }
+
+    throw std::runtime_error("failed to find supported format");
+}
+
+
+vk::Format VulkanContext::findDepthFormat() const
+{
+    const std::vector<vk::Format> candidate_formats = {
+        vk::Format::eD32Sfloat, 
+        vk::Format::eD32SfloatS8Uint,
+        vk::Format::eD24UnormS8Uint 
+    }; 
+    
+    return findSupportedFormat(
+        candidate_formats, 
+        vk::ImageTiling::eOptimal,
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment
+    );
+}

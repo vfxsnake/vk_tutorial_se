@@ -44,6 +44,8 @@ public:
     auto getSurface() const -> const vk::raii::SurfaceKHR&;
     uint32_t getQueueFamilyIndex() const;
 
+    auto findDepthFormat() const -> vk::Format;
+
 private:
     void createInstance();
     void setupDebugMessenger();
@@ -55,6 +57,12 @@ private:
     bool isDeviceSuitable(const vk::raii::PhysicalDevice& physical_device) const;
     auto findQueueFamily(const vk::raii::PhysicalDevice& physical_device) const -> std::optional<uint32_t>; // returns uint32_t or an empty value.
     bool checkDeviceExtensionSupport(const vk::raii::PhysicalDevice& physical_device) const;
+
+    auto findSupportedFormat(
+        const std::vector<vk::Format>& format_candidates, 
+        vk::ImageTiling tiling,
+        vk::FormatFeatureFlags features
+    ) const -> vk::Format;
 
     // Instance creation helpers
     static auto getRequiredInstanceExtensions() -> std::vector<const char*>;

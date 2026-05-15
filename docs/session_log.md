@@ -1469,4 +1469,40 @@ Begin Chapter 07 — request the markdown for chapter 07.
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 
+---
 
+## Session 52 — 2026-05-14
+
+**Start time:** 08:15 EDT
+**End time:** 09:08 EDT
+**Duration:** 53 minutes
+
+**Covered:**
+- Generated `docs/vulkan_chapter_07_depth_buffering.md` (single page fetched and synthesised)
+- Full architecture discussion — all decisions locked:
+  - `DepthBuffer.h` header-only move-only struct owning Image + Memory + ImageView
+  - `findSupportedFormat` + `findDepthFormat` on `VulkanContext` (private/public respectively)
+  - `Renderer::createDepthResources(vk::Extent2D) → DepthBuffer` factory
+  - `Application` calls `findDepthFormat()` once, passes to `GraphicsPipeline` constructor
+  - `record()` gains `vk::ImageView depth_image_view` as additional parameter
+  - `transitionImageLayout` extended with `vk::ImageAspectFlags` parameter
+- Saved `docs/vulkan_implementation_plan_07_depth_buffering.md`
+- Step 1 complete: `Vertex.h` — `pos` changed to `glm::vec3`, format updated to `eR32G32B32Sfloat`
+- Step 2 complete: `triangle.slang` — position input already `float3`, no change needed
+- Step 3 complete: `Application.cpp` — Z coords added; second overlapping quad added at Z=−0.5 for depth test verification
+- Step 4 partial: `VulkanContext.h` — `findDepthFormat` (public) and `findSupportedFormat` (private) declared; implementations not yet written in `VulkanContext.cpp`
+
+**Left off:**
+Step 4 incomplete — `VulkanContext.cpp` implementations of `findSupportedFormat` and `findDepthFormat` not yet written.
+
+**Next session starts at:**
+Complete Step 4 — add `findSupportedFormat` and `findDepthFormat` implementations to the bottom of `VulkanContext.cpp`, then continue with Step 5 (`DepthBuffer.h`).
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 53 — 2026-05-15
+
+**Start time:** 08:05 EDT
