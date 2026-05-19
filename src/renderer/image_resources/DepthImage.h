@@ -12,7 +12,10 @@ public:
     );
 
     DepthImage(const DepthImage&) = delete;
-    DepthImage& operator =(const DepthImage&) = delete; 
+    DepthImage& operator =(const DepthImage&) = delete;
+
+    DepthImage(DepthImage&&) = default;
+    DepthImage& operator =(DepthImage&&) = default;
 
     auto getImageView() const -> const vk::raii::ImageView&;
 

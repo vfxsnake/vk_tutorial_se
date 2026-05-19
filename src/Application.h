@@ -18,6 +18,7 @@ class Renderer;
 class Mesh;
 class TextureDescriptorLayout;
 class Texture;
+class DepthImage;
 
 class Application
 {
@@ -55,6 +56,7 @@ private:
     std::unique_ptr<TextureDescriptorLayout> textureDescriptorLayout_;
     std::unique_ptr<GraphicsPipeline> graphicsPipeline_;
     std::unique_ptr<Renderer> renderer_;
+    std::unique_ptr<DepthImage> depthImage_;
     std::unique_ptr<Texture> texture_;
     std::unique_ptr<Mesh> mesh_;
 };

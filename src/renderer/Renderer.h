@@ -8,6 +8,7 @@
 #include "buffers/Mesh.h"
 #include "buffers/UniformBufferObject.h"
 #include "image_resources/Texture.h"
+#include "image_resources/DepthImage.h"
 
 // Forward Declarations
 class VulkanContext;
@@ -37,7 +38,8 @@ public:
         SwapChain& swap_chain, 
         GraphicsPipeline& graphics_pipeline, 
         const Mesh& mesh,
-        const UniformBufferObject& uniform_buffer_object
+        const UniformBufferObject& uniform_buffer_object,
+        vk::ImageView depth_image_view
     );
     
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
@@ -45,6 +47,8 @@ public:
 
     Texture createTexture(const std::string& path);
     void bindTextureToDescriptor(const Texture& texture);
+
+    DepthImage createDepthResources(vk::Extent2D extent_2d);
 
 private:
     void createCommandPool();
@@ -86,12 +90,17 @@ private:
         vk::MemoryPropertyFlags memory_property_flags
     ) -> std::pair<vk::raii::Image, vk::raii::DeviceMemory>;
 
-    auto createImageView(vk::Image image, vk::Format format) -> vk::raii::ImageView;
+    auto createImageView(
+        vk::Image image, 
+        vk::Format format, 
+        vk::ImageAspectFlags aspect_flags = vk::ImageAspectFlagBits::eColor
+    ) -> vk::raii::ImageView;
 
     void transitionImageLayout(
         vk::Image image,
         vk::ImageLayout old_layout,
-        vk::ImageLayout new_layout
+        vk::ImageLayout new_layout,
+        vk::ImageAspectFlags aspect_flags = vk::ImageAspectFlagBits::eColor
     );
 
     void copyBufferToImage(

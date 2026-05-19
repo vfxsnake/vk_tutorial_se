@@ -14,10 +14,12 @@ GraphicsPipeline::GraphicsPipeline(
     const VulkanContext& context, 
     const FrameDescriptorLayout& frame_descriptor_layout,
     const TextureDescriptorLayout& texture_descriptor_layout,
-    vk::Format color_format
+    vk::Format color_format,
+    vk::Format depth_format
 ) : context_(context), 
     frameDescriptorLayout_(frame_descriptor_layout),
-    textureDescriptorLayout_(texture_descriptor_layout)
+    textureDescriptorLayout_(texture_descriptor_layout),
+    depthFormat_(depth_format)
 {
     createPipelineLayout();
     createPipeline(color_format);
@@ -124,6 +126,14 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
         .pAttachments = &color_blend_attachment_state
     };
 
+    vk::PipelineDepthStencilStateCreateInfo pipeline_depth_stencil_state_create_info{
+        .depthTestEnable = vk::True,
+        .depthWriteEnable = vk::True,
+        .depthCompareOp = vk::CompareOp::eLess,
+        .depthBoundsTestEnable = vk::False,
+        .stencilTestEnable = vk::False
+    };
+
     vk::GraphicsPipelineCreateInfo graphics_pipeline_create_info{
         .stageCount = 2,
         .pStages = shader_stages,
@@ -132,6 +142,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
         .pViewportState = &viewport_state,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multi_sampling_state_create_info,
+        .pDepthStencilState = &pipeline_depth_stencil_state_create_info,
         .pColorBlendState = &color_blending,
         .pDynamicState = &dynamic_state_create_info,
         .layout = *layout_,
@@ -141,6 +152,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
     vk::PipelineRenderingCreateInfo pipeline_rendering_create_info{
         .colorAttachmentCount = 1,
         .pColorAttachmentFormats = &color_format,
+        .depthAttachmentFormat = depthFormat_
     };
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipeline_create_info_chain = {
@@ -206,7 +218,8 @@ void GraphicsPipeline::record(
     vk::Extent2D extent, 
     vk::Image image,
     vk::ImageView image_view, 
-    const Mesh& mesh
+    const Mesh& mesh,
+    vk::ImageView depth_image_view
 )
 {
     vk::CommandBufferBeginInfo command_buffer_begin_info{};
@@ -231,6 +244,10 @@ void GraphicsPipeline::record(
             .float32 = std::array<float,4>{0.0f, 0.0f, 0.0f, 1.0f}
         }
     };
+
+    vk::ClearValue clear_depth{
+        .depthStencil = vk::ClearDepthStencilValue(1.0f, 0)
+    };
     
     vk::RenderingAttachmentInfo attachment_info{
         .imageView = image_view,
@@ -240,6 +257,14 @@ void GraphicsPipeline::record(
         .clearValue = clear_value
     };
 
+    vk::RenderingAttachmentInfo depth_attachment_info{
+        .imageView = depth_image_view,
+        .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
+        .clearValue = clear_depth
+    };
+
     vk::RenderingInfo rendering_info{
         .renderArea = {
             .offset = {0, 0}, 
@@ -247,7 +272,8 @@ void GraphicsPipeline::record(
         },
         .layerCount = 1,
         .colorAttachmentCount = 1,
-        .pColorAttachments = &attachment_info
+        .pColorAttachments = &attachment_info,
+        .pDepthAttachment = &depth_attachment_info
     };
 
     command_buffer.beginRendering(rendering_info);

@@ -163,7 +163,8 @@ bool Renderer::drawFrame(
     SwapChain& swap_chain, 
     GraphicsPipeline& graphics_pipeline, 
     const Mesh& mesh, 
-    const UniformBufferObject& uniform_buffer_object
+    const UniformBufferObject& uniform_buffer_object,
+    vk::ImageView depth_image_view
 )
 {
     // CPU side fence: waiting for gpu task finishes
@@ -213,7 +214,8 @@ bool Renderer::drawFrame(
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
         swap_chain.getImageView(image_index),
-        mesh
+        mesh,
+        depth_image_view
     );
 
     static constexpr vk::PipelineStageFlags wait_destination_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
@@ -468,14 +470,14 @@ std::pair<vk::raii::Image, vk::raii::DeviceMemory> Renderer::createImage(
 }
 
 
-vk::raii::ImageView Renderer::createImageView(vk::Image image, vk::Format format)
+vk::raii::ImageView Renderer::createImageView(vk::Image image, vk::Format format, vk::ImageAspectFlags aspect_flags)
 {
     vk::ImageViewCreateInfo image_view_create_info{
         .image = image,
         .viewType = vk::ImageViewType::e2D,
         .format = format,
         .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .aspectMask = aspect_flags,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
@@ -490,7 +492,8 @@ vk::raii::ImageView Renderer::createImageView(vk::Image image, vk::Format format
 void Renderer::transitionImageLayout(
         vk::Image image,
         vk::ImageLayout old_layout,
-        vk::ImageLayout new_layout
+        vk::ImageLayout new_layout,
+        vk::ImageAspectFlags aspect_flags
     )
 {
     vk::ImageMemoryBarrier image_memory_barrier{
@@ -500,7 +503,7 @@ void Renderer::transitionImageLayout(
         .dstQueueFamilyIndex = vk::QueueFamilyIgnored,
         .image = image,
         .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .aspectMask = aspect_flags,
             .baseMipLevel = 0,
             .levelCount = 1,
             .baseArrayLayer = 0,
@@ -529,6 +532,14 @@ void Renderer::transitionImageLayout(
         destination_stage = vk::PipelineStageFlagBits::eFragmentShader;
     }
     
+    else if (old_layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eDepthAttachmentOptimal)
+    {
+        image_memory_barrier.srcAccessMask = {};
+        image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        source_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destination_stage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    }
+
     else
     {
         throw std::invalid_argument("unsupported layout transition!");
@@ -666,5 +677,35 @@ void Renderer::bindTextureToDescriptor(const Texture& texture)
     };
 
     context_.getLogicalDevice().updateDescriptorSets({write_descriptor_set}, {});
+}
+
+
+DepthImage Renderer::createDepthResources(vk::Extent2D extent_2d)
+{
+    vk::Format depth_resource_format = context_.findDepthFormat();
+    
+    auto [depth_image, depth_image_memory] = createImage(
+        extent_2d.width, 
+        extent_2d.height, 
+        depth_resource_format,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::MemoryPropertyFlagBits::eDeviceLocal
+    );
+
+    transitionImageLayout(
+        *depth_image, 
+        vk::ImageLayout::eUndefined, 
+        vk::ImageLayout::eDepthAttachmentOptimal,
+        vk::ImageAspectFlagBits::eDepth
+    );
+
+    vk::raii::ImageView image_view = createImageView(
+        *depth_image, 
+        depth_resource_format, 
+        vk::ImageAspectFlagBits::eDepth
+    );
+
+    return DepthImage(std::move(depth_image), std::move(depth_image_memory), std::move(image_view));
 }
 

@@ -1506,3 +1506,55 @@ Complete Step 4 — add `findSupportedFormat` and `findDepthFormat` implementati
 ## Session 53 — 2026-05-15
 
 **Start time:** 08:05 EDT
+**End time:** 11:12 EDT
+**Duration:** 3 hours 7 minutes
+
+**Covered:**
+- Implemented `findSupportedFormat()` in `VulkanContext.cpp` — iterates candidates, queries `getFormatProperties`, checks `linearTilingFeatures` or `optimalTilingFeatures` against required feature flags, throws if none pass
+- Implemented `findDepthFormat()` — one-liner calling `findSupportedFormat` with `{eD32Sfloat, eD32SfloatS8Uint, eD24UnormS8Uint}`, `eOptimal`, `eDepthStencilAttachment`; Step 4 complete
+- Architecture decision: renamed `renderer/textures/` → `renderer/image_resources/` (groups `VkImage`-backed resources consistently with `renderer/buffers/` for `VkBuffer`-backed); updated all include paths in `Application.cpp`, `Renderer.h`, `CMakeLists.txt`
+- Architecture decision: renamed `DepthBuffer` → `DepthImage` (avoids confusion with `VkBuffer`; accurate name for an image resource)
+- Created `src/renderer/image_resources/DepthImage.h/.cpp` — move-only struct, three RAII members (`Image`, `DeviceMemory`, `ImageView`), `getImageView() const -> const vk::raii::ImageView&`, consistent with `Texture` pattern
+- Added `DepthImage.cpp` to `CMakeLists.txt`
+- Build confirmed clean
+
+**Left off:**
+Step 5 complete (`DepthImage.h/.cpp` done). Step 6 not yet started — `Renderer` needs `createDepthResources` declaration and implementation.
+
+**Next session starts at:**
+Step 6 — add `#include "image_resources/DepthImage.h"` to `Renderer.h`, declare `auto createDepthResources(vk::Extent2D extent) -> DepthImage` (public), then implement in `Renderer.cpp`: `createImage` for depth format, transition to `eDepthStencilAttachmentOptimal`, `createImageView` with `eDepth` aspect, return `DepthImage(...)`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Implementation plan (`vulkan_implementation_plan_07_depth_buffering.md`) still references old `renderer/textures/` and `DepthBuffer` names — docs-only, non-blocking.
+
+---
+
+## Session 54 — 2026-05-18
+
+**Start time:** 08:36 EDT
+
+**End time:** 11:08 EDT
+**Duration:** 2 hours 32 minutes
+
+**Covered:**
+- Step 6: Extended `transitionImageLayout` with `vk::ImageAspectFlags aspect_flags` parameter (default `eColor`); added third `else if` branch for `eUndefined → eDepthAttachmentOptimal` with correct depth stage/access masks
+- Step 7: Implemented `Renderer::createDepthResources(vk::Extent2D) → DepthImage` — `createImage`, `transitionImageLayout` with `eDepth`, `createImageView` with `eDepth`, returns moved `DepthImage`
+- Step 6 (createImageView): Extended with `vk::ImageAspectFlags aspect_flags` parameter (default `eColor`) to support depth view creation
+- Step 8: `GraphicsPipeline` — added `depthFormat_` member, `depthAttachmentFormat` to `PipelineRenderingCreateInfo`, `VkPipelineDepthStencilStateCreateInfo`, `depth_image_view` parameter to `record()`, depth `RenderingAttachmentInfo` with `eDontCare` store and `ClearDepthStencilValue(1.0f, 0)`
+- Step 9: `Application` — added `depthImage_` unique_ptr in correct destruction order, `findDepthFormat()` passed to `GraphicsPipeline` constructor, `createDepthResources` called in `initVulkan()`, depth image recreated in `onResize()` via unique_ptr reassignment, `depthImage_->getImageView()` threaded through `drawFrame()` → `record()`
+
+**Left off:**
+All Ch07 code written — build not yet attempted.
+
+**Next session starts at:**
+Build and fix any compile errors, then run the smoke tests: depth occlusion correct (Z=0 quad occludes Z=−0.5 quad), resize works without validation errors, validation layers silent.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 55 — 2026-05-19
+
+**Start time:** 08:09 EDT

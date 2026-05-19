@@ -17,7 +17,8 @@ public:
         const VulkanContext& context, 
         const FrameDescriptorLayout& frame_descriptor_layout,
         const TextureDescriptorLayout& texture_descriptor_layout,
-        vk::Format color_format
+        vk::Format color_format,
+        vk::Format depth_format
     );
 
     // Non-copyable (removing copyable constructors)
@@ -30,8 +31,9 @@ public:
         const vk::raii::DescriptorSet& texture_descriptor_set,
         vk::Extent2D extent, 
         vk::Image image, 
-        vk::ImageView image_view, 
-        const Mesh& mesh
+        vk::ImageView image_view,
+        const Mesh& mesh,
+        vk::ImageView depth_image_view
     );
 
     auto getPipeline() const -> const vk::raii::Pipeline&;
@@ -60,4 +62,5 @@ private:
     const TextureDescriptorLayout& textureDescriptorLayout_;
     vk::raii::PipelineLayout layout_ = nullptr;
     vk::raii::Pipeline pipeline_ = nullptr;
+    vk::Format depthFormat_;
 };

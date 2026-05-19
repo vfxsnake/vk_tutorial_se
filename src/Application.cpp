@@ -12,6 +12,7 @@
 #include "renderer/descriptors/FrameDescriptorLayout.h"
 #include "renderer/descriptors/TextureDescriptorLayout.h"
 #include "renderer/image_resources/Texture.h"
+#include "renderer/image_resources/DepthImage.h"
 
 
 Application::Application() : startTime_(std::chrono::high_resolution_clock::now())
@@ -51,12 +52,28 @@ void Application::initWindow()
 void Application::initVulkan()
 {
     context_ = std::make_unique<VulkanContext>(window_);
+    
     swapChain_ = std::make_unique<SwapChain>(*context_, window_);  //*context_ dereferencing of context as we need it as reference.
+    
     frameDescriptorLayout_ = std::make_unique<FrameDescriptorLayout>(*context_);
+    
     textureDescriptorLayout_ = std::make_unique<TextureDescriptorLayout>(*context_);
-    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_, swapChain_->getFormat());
+    
+    graphicsPipeline_ = std::make_unique<GraphicsPipeline>(
+        *context_, *frameDescriptorLayout_, 
+        *textureDescriptorLayout_, 
+        swapChain_->getFormat(), 
+        context_->findDepthFormat()
+    );
+    
+
     renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_);
     renderer_->initializePerImageResources(swapChain_->getImageCount());
+
+    // creating depth Image buffer
+    depthImage_ = std::make_unique<DepthImage>(
+        renderer_->createDepthResources(swapChain_->getExtent())
+    );
 
     // creating and binding the texture
     texture_ = std::make_unique<Texture>(renderer_->createTexture("textures/texture.jpg"));
@@ -102,7 +119,8 @@ void Application::mainLoop()
             computeUniformBufferObject(
                 swapChain_->getExtent(), 
                 std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime_).count()
-            )
+            ),
+            depthImage_->getImageView()
         );
 
         if (!was_frame_drawn || framebufferResized_)
@@ -131,6 +149,10 @@ void Application::onResize()
     framebufferResized_ = false;
     swapChain_->recreate();
     renderer_->initializePerImageResources(swapChain_->getImageCount());
+    
+    depthImage_ = std::make_unique<DepthImage>(
+        renderer_->createDepthResources(swapChain_->getExtent())
+    );
 }
 
 
