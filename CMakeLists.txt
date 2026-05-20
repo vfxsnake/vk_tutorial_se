@@ -50,7 +50,7 @@ FetchContent_MakeAvailable(stb)
 FetchContent_Declare(
     tinyobjloader
     GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
-    GIT_TAG        release
+    GIT_TAG        v2.0.0rc13
 )
 FetchContent_MakeAvailable(tinyobjloader)
 
@@ -67,6 +67,7 @@ add_executable(VulkanTutorial
     src/renderer/descriptors/TextureDescriptorLayout.cpp
     src/renderer/image_resources/Texture.cpp
     src/renderer/image_resources/DepthImage.cpp
+    src/utils/ModelLoader.cpp
 )
 
 target_include_directories(VulkanTutorial PRIVATE
@@ -87,6 +88,7 @@ target_compile_definitions(VulkanTutorial PRIVATE
     VULKAN_HPP_NO_CONSTRUCTORS      # use designated initializers {.pValue = ..., .aVariable = ...}
     GLM_FORCE_RADIANS
     GLM_FORCE_DEPTH_ZERO_TO_ONE
+    GLM_ENABLE_EXPERIMENTAL
 )
 
 # Shaders block
@@ -120,4 +122,12 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/textures
         ${CMAKE_BINARY_DIR}/textures
     COMMENT "Copying textures"
+)
+
+add_custom_command(
+    TARGET VulkanTutorial POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/models
+        ${CMAKE_BINARY_DIR}/models
+    COMMENT "Copying models"
 )

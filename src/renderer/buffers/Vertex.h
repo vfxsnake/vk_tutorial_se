@@ -4,12 +4,18 @@
 #include <glm/glm.hpp>
 #include <array>
 #include <cstddef>
+#include <glm/gtx/hash.hpp>
 
 struct Vertex
 {
     glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 uv; // texture coordinates
+
+    bool operator ==(const Vertex& vertex_b) const
+    {
+        return (vertex_b.pos == pos && vertex_b.color == color && vertex_b.uv == uv);
+    }
 
     static vk::VertexInputBindingDescription getBindingDescription()
     {
@@ -49,3 +55,15 @@ struct Vertex
     }
 };
 
+namespace std
+{
+    template<> struct hash<Vertex>
+    {
+        size_t operator()(Vertex const& vertex) const
+        {
+            return ((hash<glm::vec3>()(vertex.pos)
+                   ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1)
+                   ^ (hash<glm::vec2>()(vertex.uv) << 1);
+        }
+    };
+}

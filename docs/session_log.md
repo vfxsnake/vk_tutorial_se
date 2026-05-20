@@ -1558,3 +1558,87 @@ Build and fix any compile errors, then run the smoke tests: depth occlusion corr
 ## Session 55 — 2026-05-19
 
 **Start time:** 08:09 EDT
+**End time:** 08:25 EDT
+
+**Duration:** 16 minutes
+
+**Covered:**
+- Fixed missing move constructor on `DepthImage` — explicitly deleted copy operations suppress the implicit move constructor (Rule of Five); added `DepthImage(DepthImage&&) = default` and `operator=(DepthImage&&) = default` to `DepthImage.h`
+- WSL2 build clean after fix
+- Windows smoke tests all pass: depth occlusion correct (Z=0 quad occludes Z=−0.5 quad), resize clean, validation layers silent
+- **Chapter 07 (Depth Buffering) fully complete**
+
+**Left off:**
+Chapter 07 fully verified on Windows.
+
+**Next session starts at:**
+Begin Chapter 08 — request the markdown for chapter 08 (Loading Models).
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Note for future: when deleting copy operations on a move-only class, always explicitly `= default` the move constructor and move assignment operator — the compiler does not generate them implicitly once any copy operation is user-declared.
+
+---
+
+## Session 56 — 2026-05-19
+
+**Start time:** 08:26 EDT
+**End time:** 10:19 EDT
+**Duration:** 1 hour 53 minutes
+
+**Covered:**
+- Fetched Chapter 08 (Loading Models) — synthesised `docs/vulkan_chapter_08_loading_models.md`
+- Full architecture discussion — all decisions locked:
+  - `loadModel()` as free function in `src/utils/ModelLoader.h/.cpp` (option B — pure CPU I/O, no Vulkan)
+  - Return type: `ModelData { vector<Vertex> vertices; vector<uint32_t> indices; }` defined in `ModelLoader.h`
+  - `GLM_ENABLE_EXPERIMENTAL` added to `CMakeLists.txt` compile definitions
+  - `TINYOBJLOADER_IMPLEMENTATION` goes in `ModelLoader.cpp`
+  - Index type upgraded `uint16_t` → `uint32_t` throughout
+- Saved `docs/vulkan_implementation_plan_08_loading_models.md`
+- Step 1 complete: `CMakeLists.txt` — `GLM_ENABLE_EXPERIMENTAL`, `ModelLoader.cpp` source entry, `models/` POST_BUILD copy
+- Step 2 complete: Assets added (`models/viking_room.obj`, `textures/viking_room.png`)
+- Step 3 complete: `Vertex.h` — `operator==` (with `const`), `std::hash<Vertex>` specialization, `<glm/gtx/hash.hpp>` include
+- Step 4 complete: `Renderer.h/.cpp` — `createMesh` signature and body updated to `uint32_t` / `eUint32` / `sizeof(uint32_t)` (note: `Mesh.h` was already using `vk::IndexType` as a member — no changes needed there)
+- Side note: user flagged C++ hashing (`std::unordered_map`, `std::hash<T>`, XOR-shift combining) for self-study outside the project — saved to memory
+
+**Left off:**
+Steps 1–4 complete. Step 5 not yet started.
+
+**Next session starts at:**
+Step 5 — create `src/utils/ModelLoader.h` with `ModelData` struct and `loadModel(const std::string& path) -> ModelData` declaration. Then Step 6 — `ModelLoader.cpp` implementation.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+
+
+---
+
+## Session 57 — 2026-05-20
+
+**Start time:** 08:13 EDT
+**End time:** 10:55 EDT
+**Duration:** 2 hours 42 minutes
+
+**Covered:**
+- Step 5 complete: `src/utils/ModelLoader.h` — `ModelData` struct (`vertices_`, `indices_`), `loadModel(const std::string& path)` declaration, correct includes
+- Step 6 complete: `src/utils/ModelLoader.cpp` — `TINYOBJLOADER_IMPLEMENTATION`, `LoadObj` call, deduplication loop with `unordered_map<Vertex, uint32_t>`, V-flip on texcoords, return `ModelData`
+- Step 7 complete: `Application.cpp` — `loadModel("models/viking_room.obj")` call, `createMesh(model.vertices_, model.indices_)`, texture path updated to `viking_room.png`
+- CMake: tinyobjloader downgraded from `release` to `v2.0.0rc13` to avoid MSVC C3615 constexpr error in fast_float
+- Debugging journey: removed/restored `TINYOBJLOADER_IMPLEMENTATION`; tried `/permissive` and `/std:c++17` per-file (both failed); confirmed root cause was the tinyobjloader `release` tag bundling fast_float which MSVC C++20 rejects
+- WSL2 build clean. Windows build pending (needs re-fetch of tinyobjloader `v2.0.0rc13`)
+
+**Left off:**
+Windows build not yet attempted with the pinned `v2.0.0rc13` tag. Old tinyobjloader cache needs clearing before reconfigure.
+
+**Next session starts at:**
+Clear tinyobjloader cache, reconfigure and build on Windows:
+```
+rmdir /s /q build\_deps\tinyobjloader-src build\_deps\tinyobjloader-build build\_deps\tinyobjloader-subbuild
+cmake -G "Visual Studio 17 2022" -A x64 -S . -B build
+cmake --build build --config Debug
+```
+Then run smoke test: viking room model visible with texture, depth occlusion correct, resize clean, validation layers silent (OBS_HOOK warning harmless).
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Remove debug size prints from `Application.cpp` after confirming the model loads correctly.

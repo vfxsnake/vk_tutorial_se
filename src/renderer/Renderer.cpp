@@ -368,7 +368,7 @@ std::pair<vk::raii::Buffer, vk::raii::DeviceMemory> Renderer::uploadBufferToDevi
 }
 
 
-Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices)
+Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
     // Vertex buffer handling
     vk::DeviceSize vertex_buffer_size = sizeof(Vertex) * vertices.size();  // on the tutorial sizeof(vertices[0]) works the same as it pulls the type from the array address
@@ -379,7 +379,7 @@ Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector
     );
 
     // Index buffer handling
-    vk::DeviceSize index_buffer_size = sizeof(uint16_t) * indices.size();
+    vk::DeviceSize index_buffer_size = sizeof(uint32_t) * indices.size();
     auto [index_buffer, index_buffer_memory] = uploadBufferToDevice(
         indices.data(), 
         index_buffer_size, 
@@ -393,7 +393,7 @@ Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector
         std::move(index_buffer),
         std::move(index_buffer_memory),
         static_cast<uint32_t>(indices.size()),
-        vk::IndexType::eUint16
+        vk::IndexType::eUint32
     );
 }
 

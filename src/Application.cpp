@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
 #include "core/VulkanContext.h"
 #include "core/SwapChain.h"
@@ -13,6 +14,7 @@
 #include "renderer/descriptors/TextureDescriptorLayout.h"
 #include "renderer/image_resources/Texture.h"
 #include "renderer/image_resources/DepthImage.h"
+#include "utils/ModelLoader.h"
 
 
 Application::Application() : startTime_(std::chrono::high_resolution_clock::now())
@@ -76,32 +78,14 @@ void Application::initVulkan()
     );
 
     // creating and binding the texture
-    texture_ = std::make_unique<Texture>(renderer_->createTexture("textures/texture.jpg"));
+    texture_ = std::make_unique<Texture>(renderer_->createTexture("textures/viking_room.png"));
     renderer_->bindTextureToDescriptor(*texture_);
-    /*
-        temporary definition of the vertex data
-    */
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+    
+    ModelData model = loadModel("models/viking_room.obj");
+    std::cout << "vertex size: " << model.vertices_.size() << "\n";
+    std::cout << "indices size: " << model.indices_.size() << "\n";
 
-        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-    };
-
-    /*
-        temporary definition of the index data
-    */
-    const std::vector<uint16_t> indices = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4
-    };
-
-    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(vertices, indices));
+    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(model.vertices_, model.indices_));
 }
 
 

@@ -42,7 +42,7 @@ public:
         vk::ImageView depth_image_view
     );
     
-    Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
+    Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
     void initializePerImageResources(uint32_t image_count);
 
     Texture createTexture(const std::string& path);
