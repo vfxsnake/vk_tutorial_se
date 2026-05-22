@@ -43,6 +43,7 @@ public:
     auto getQueue() -> vk::raii::Queue&; // this method wont be constat as we plan to edit the queue with submit call later
     auto getSurface() const -> const vk::raii::SurfaceKHR&;
     uint32_t getQueueFamilyIndex() const;
+    auto getMsaaSamples() const -> vk::SampleCountFlagBits;
 
     auto findDepthFormat() const -> vk::Format;
 
@@ -63,6 +64,8 @@ private:
         vk::ImageTiling tiling,
         vk::FormatFeatureFlags features
     ) const -> vk::Format;
+
+    auto getMaxUsableSampleCount() const -> vk::SampleCountFlagBits;
 
     // Instance creation helpers
     static auto getRequiredInstanceExtensions() -> std::vector<const char*>;
@@ -105,5 +108,6 @@ private:
     vk::raii::Device logicalDevice_ = nullptr;
     vk::raii::Queue graphicsQueue_ = nullptr;
     uint32_t queueFamilyIndex_ = 0;
+    vk::SampleCountFlagBits msaaSamples_ = vk::SampleCountFlagBits::e1;  // msaaSampels:  multi sample anti aliasing samples
 
 };

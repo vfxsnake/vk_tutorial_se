@@ -14,6 +14,7 @@ VulkanContext::VulkanContext(GLFWwindow* window)
     setupDebugMessenger();
     createSurface(window);
     pickPhysicalDevice();
+    msaaSamples_ = getMaxUsableSampleCount();
     createLogicalDevice();
 }
 
@@ -243,6 +244,47 @@ std::optional<uint32_t> VulkanContext::findQueueFamily(const vk::raii::PhysicalD
     return std::nullopt;
 }
 
+
+vk::SampleCountFlagBits VulkanContext::getMaxUsableSampleCount() const
+{
+    vk::PhysicalDeviceProperties properties =  physicalDevice_.getProperties();
+    vk::SampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+    
+    if (counts & vk::SampleCountFlagBits::e64)
+    {
+        return vk::SampleCountFlagBits::e64;
+    }
+
+    if (counts & vk::SampleCountFlagBits::e32)
+    {
+        return vk::SampleCountFlagBits::e32;
+    }
+
+    if (counts & vk::SampleCountFlagBits::e16)
+    {
+        return vk::SampleCountFlagBits::e16;
+    }
+
+    if (counts & vk::SampleCountFlagBits::e8)
+    {
+        return vk::SampleCountFlagBits::e8;
+    }
+
+    if (counts & vk::SampleCountFlagBits::e4)
+    {
+        return vk::SampleCountFlagBits::e4;
+    }
+
+    if (counts & vk::SampleCountFlagBits::e2)
+    {
+        return vk::SampleCountFlagBits::e2;
+    }
+
+    return vk::SampleCountFlagBits::e1;
+    
+}
+
+
 bool VulkanContext::isDeviceSuitable(const vk::raii::PhysicalDevice& physical_device) const
 {
     if (!(physical_device.getProperties().apiVersion >= vk::ApiVersion14)) return false;
@@ -329,19 +371,28 @@ const vk::raii::PhysicalDevice& VulkanContext::getPhysicalDevice() const
     return physicalDevice_;
 }
 
+
 vk::raii::Queue& VulkanContext::getQueue()
 {
     return graphicsQueue_;
 }
+
 
 const vk::raii::SurfaceKHR& VulkanContext::getSurface() const
 {
     return surface_;
 }
 
+
 uint32_t VulkanContext::getQueueFamilyIndex() const
 {
     return queueFamilyIndex_;
+}
+
+
+vk::SampleCountFlagBits VulkanContext::getMsaaSamples() const
+{
+    return msaaSamples_;
 }
 
 

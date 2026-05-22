@@ -1642,3 +1642,60 @@ Then run smoke test: viking room model visible with texture, depth occlusion cor
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Remove debug size prints from `Application.cpp` after confirming the model loads correctly.
+
+---
+
+## Session 58 — 2026-05-21
+
+**Start time:** 07:40 EDT
+**End time:** 08:59 EDT
+**Duration:** 1 hour 19 minutes
+
+**Covered:**
+- Chapter 08 verified complete on Windows (viking room, texture, depth, resize — all clean)
+- Decided to combine Ch09 (Mipmaps) + Ch10 (MSAA) into one implementation pass — both single-page chapters, tightly coupled through `createImage()`
+- Fetched both tutorial pages; produced `docs/vulkan_chapter_09-10_mipmaps_and_msaa.md`
+- Full architecture discussion — all four decisions locked:
+  - Q1: `createImage()` takes `mip_levels` and `num_samples` explicitly — no defaults
+  - Q2: `VulkanContext` computes and stores `msaaSamples_` after `pickPhysicalDevice()`; exposes via `getMsaaSamples() const`
+  - Q3: New `MsaaColorImage` move-only struct in `renderer/image_resources/`; factory `Renderer::createColorResources(extent, format)`
+  - Q4: `record()` gains `vk::ImageView msaa_color_image_view` parameter; swap chain image view becomes resolve target
+- Produced `docs/vulkan_implementation_plan_09-10_mipmaps_msaa.md`
+- Step 1 complete: `VulkanContext` — `getMaxUsableSampleCount()` private helper, `msaaSamples_` member (initialised `e1`), `getMsaaSamples()` accessor, computed in constructor after `pickPhysicalDevice()`
+
+**Left off:**
+Step 1 complete. Step 2 not yet started — `Renderer::createImage()` and `createImageView()` signature updates.
+
+**Next session starts at:**
+Step 2 — update `Renderer::createImage()` (add `mip_levels` + `num_samples`), `Renderer::createImageView()` (add `level_count`), update all call sites with explicit values.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- cSpell warnings in `VulkanContext.cpp` line 393/395 on "Msaa"/"msaa" — harmless, just the spell checker not knowing the acronym. Can suppress with a cSpell ignore comment if it's distracting.
+- Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 59 — 2026-05-22
+
+**Start time:** 08:10 EDT
+**End time:** 11:01 EDT
+**Duration:** 2 hours 51 minutes
+
+**Covered:**
+- Step 2 complete: `createImage()` and `createImageView()` updated with `mip_levels`, `num_samples`, `level_count` parameters; all call sites updated; `levelCount = 1` hardcoded bug caught and fixed
+- Step 3 complete: `transitionImageLayout()` updated with `level_count` parameter; default removed from `aspect_flags`; all call sites updated with explicit `eColor` and `level_count = 1`
+- Step 4 Part A complete: `generateMipmaps()` declared and implemented — format support check, barrier defined outside loop, loop `i=1` to `mip_levels-1` with blit + two barriers per iteration, post-loop final barrier for last level
+- Discussed why `i=1` is the correct loop start (not `i=0`) — off-by-one would blit into a non-existent level when `mip_levels == 1`
+- Discussed why the post-loop barrier is needed — last level is never a blit source so the loop's second barrier never fires for it
+- Discussed `vk::Offset3D` depth axis — Z=1 is the exclusive end of a single-slice range, not a multiplier
+
+**Left off:**
+Step 4 Part A done. Part B not yet started — `Texture.h` and `createTexture()` wiring.
+
+**Next session starts at:**
+Step 4 Part B — add `mipLevels_` member and constructor parameter to `Texture.h`, then update `createTexture()`: calculate `mip_levels` after `stbi_load`, update `createImage()` call (pass `mip_levels`, add `eTransferSrc` usage), update first `transitionImageLayout()` to pass `mip_levels`, remove second `transitionImageLayout()`, add `generateMipmaps()` call, update `createImageView()` to pass `mip_levels`, update `Texture(...)` construction to pass `mip_levels`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.

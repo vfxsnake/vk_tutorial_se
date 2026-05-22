@@ -50,6 +50,14 @@ public:
 
     DepthImage createDepthResources(vk::Extent2D extent_2d);
 
+    void generateMipmaps(
+        vk::Image image,
+        vk::Format format, 
+        uint32_t width,
+        uint32_t height,
+        uint32_t mip_levels
+    );
+
 private:
     void createCommandPool();
     void createDescriptorPool();
@@ -83,7 +91,9 @@ private:
 
     auto createImage(
         uint32_t width, 
-        uint32_t height, 
+        uint32_t height,
+        uint32_t mip_levels,
+        vk::SampleCountFlagBits num_samples,
         vk::Format format, 
         vk::ImageTiling tiling,
         vk::ImageUsageFlags usage_flags,
@@ -93,14 +103,16 @@ private:
     auto createImageView(
         vk::Image image, 
         vk::Format format, 
-        vk::ImageAspectFlags aspect_flags = vk::ImageAspectFlagBits::eColor
+        vk::ImageAspectFlags aspect_flags,
+        uint32_t level_count
     ) -> vk::raii::ImageView;
 
     void transitionImageLayout(
         vk::Image image,
         vk::ImageLayout old_layout,
         vk::ImageLayout new_layout,
-        vk::ImageAspectFlags aspect_flags = vk::ImageAspectFlagBits::eColor
+        vk::ImageAspectFlags aspect_flags,
+        uint32_t level_count
     );
 
     void copyBufferToImage(
