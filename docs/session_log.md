@@ -1699,3 +1699,66 @@ Step 4 Part B — add `mipLevels_` member and constructor parameter to `Texture.
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 60 — 2026-05-25
+
+**Start time:** 15:08 EDT
+**End time:** 17:33 EDT
+**Duration:** 2 hours 25 minutes
+
+**Covered:**
+- Step 4 Part B complete — `Texture.h/.cpp` updated with `mipLevels_` member + constructor parameter; `createTexture()` fully wired: `mip_levels` formula, `eTransferSrc` added to image usage, second `transitionImageLayout` removed, `generateMipmaps()` call added, `createImageView()` and `Texture(...)` construction updated
+- Explained `log2` math for mip level count formula — how halvings relate to powers of two
+- Step 5 complete — `createSampler()` updated with `minLod=0.0f`, `maxLod=vk::LodClampNone`
+- Step 6 complete — `MsaaColorImage.h/.cpp` created (move-only, three RAII members, `getImageView()`); added to `CMakeLists.txt`
+- Step 7 complete — `createMsaaColorImage()` implemented on `Renderer`; no pre-transition needed (dynamic rendering handles it via `loadOp=eClear`)
+- Step 8 complete — `GraphicsPipeline` updated: `msaaSamples_` member + constructor param, `rasterizationSamples` wired, `record()` gains `msaa_color_image_view`, resolve fields added to colour `RenderingAttachmentInfo`
+- Step 9 complete — `Application` wired: `msaaColorImage_` unique_ptr in correct destruction order, created in `initVulkan()`, recreated in `onResize()`, `msaa_color_image_view` threaded through `drawFrame()` → `record()`
+- WSL2 build clean
+
+**Left off:**
+All nine steps complete, WSL2 compiles. Windows smoke tests not yet run.
+
+**Next session starts at:**
+Run Windows smoke tests (T1–T7 in `docs/vulkan_implementation_plan_09-10_mipmaps_msaa.md`): mipmaps generated silently, smooth texture falloff, MSAA edges, depth occlusion, resize/minimise clean, validation layers silent. If all pass, Chapter 09-10 is complete.
+
+---
+
+## Session 61 — 2026-05-26
+
+**Start time:** 08:10 EDT
+**End time:** 09:52 EDT
+**Duration:** 1 hour 42 minutes
+
+**Covered:**
+- Windows smoke tests for Ch09-10 (Mipmaps + MSAA) — all T1–T7 pass; Chapter 09-10 complete
+- Side discussion: MSAA image explained — swap chain images are always 1-sample; MSAA image stores N samples/pixel, resolve step averages to single color; same logic applies to depth image
+- Side discussion: MSAA sample count — negotiation between desired quality and hardware ceiling; `getMaxUsableSampleCount()` could become `chooseSampleCount()` with a user-quality clamp; must be consistent across color image, depth image, and pipeline `rasterizationSamples`
+- Fetched Chapter 11 (Compute Shader) — produced `docs/vulkan_chapter_11_compute_shader.md`
+- Full architecture discussion — all 8 decisions locked (see below)
+- Produced `docs/vulkan_implementation_plan_11_compute_shader.md`
+
+**Key decisions — Chapter 11:**
+- Q1: `Particle.h` → `src/renderer/buffers/Particle.h` (GPU wire format, alongside `Vertex.h`)
+- Q2: Per-frame compute resources → separate `ComputeFrameSlot` struct (parallel to `RenderFrameSlot`)
+- Q3: Descriptor layout → `ParticleDescriptorLayout` in `src/renderer/compute/`
+- Q4: Compute UBO → separate `ComputeUniformBufferObject { float deltaTime_; }` in `src/renderer/compute/`; `UniformBufferObject` untouched
+- Q5: `ComputePipeline` in `src/renderer/compute/`, hardcoded `particles.spv`, `record(commandBuffer, descriptorSet, particle_count)`
+- Q6: Binary semaphores (`computeFinishedSemaphore_` per slot; graphics waits at `eVertexInput`); timeline semaphores deferred to "Building a Simple Engine"
+- Q7: One `drawFrame()` handles both compute + graphics; both viking room and particle system kept
+- Q8: Two separate dynamic rendering passes — `GraphicsPipeline` unchanged (pass 1, clears, depth write on); new `ParticleGraphicsPipeline` (pass 2, `loadOp=eLoad`, depth write off, `ePointList`, additive blend)
+- New `renderer/compute/` subfolder established for particle system and future compute workloads (post-process, culling, skinning in "Building a Simple Engine")
+
+**Left off:**
+Architecture discussion complete. Implementation plan written and accepted. No Ch11 code written yet.
+
+**Next session starts at:**
+Begin Ch11 implementation at Step 1 — write `src/renderer/buffers/Particle.h` per the implementation plan.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
+- `ParticleGraphicsPipeline::record()` must own the `ePresentSrcKHR` layout transition (last pass owns it); `GraphicsPipeline::record()` transition to `ePresentSrcKHR` must be removed when both pipelines are active.
+- `PARTICLE_COUNT = 256 * 500 = 128000` — must be divisible by `numthreads(256,1,1)` in compute shader.

@@ -6,6 +6,8 @@
 #include "descriptors/TextureDescriptorLayout.h"
 
 #include <stdexcept>
+#include <cmath>
+#include <algorithm>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -160,11 +162,12 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 
 
 bool Renderer::drawFrame(
-    SwapChain& swap_chain, 
-    GraphicsPipeline& graphics_pipeline, 
-    const Mesh& mesh, 
+    SwapChain& swap_chain,
+    GraphicsPipeline& graphics_pipeline,
+    const Mesh& mesh,
     const UniformBufferObject& uniform_buffer_object,
-    vk::ImageView depth_image_view
+    vk::ImageView depth_image_view,
+    vk::ImageView msaa_color_image_view
 )
 {
     // CPU side fence: waiting for gpu task finishes
@@ -214,6 +217,7 @@ bool Renderer::drawFrame(
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
         swap_chain.getImageView(image_index),
+        msaa_color_image_view,
         mesh,
         depth_image_view
     );
@@ -595,7 +599,9 @@ vk::raii::Sampler Renderer::createSampler()
         .anisotropyEnable = vk::True,
         .maxAnisotropy = physical_device_properties.limits.maxSamplerAnisotropy,
         .compareEnable = vk::False,
-        .compareOp = vk::CompareOp::eAlways
+        .compareOp = vk::CompareOp::eAlways,
+        .minLod = 0.0f,
+        .maxLod = vk::LodClampNone
     };
 
     return vk::raii::Sampler(context_.getLogicalDevice(), sampler_create_info);
@@ -614,6 +620,8 @@ Texture Renderer::createTexture(const std::string& path)
         throw std::runtime_error("failed to load texutre image: " + path);
     }
     
+    uint32_t mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture_width, texture_height)))) + 1;
+
     vk::DeviceSize image_size = texture_width * texture_height * 4;
 
     auto [staging_buffer, staging_buffer_memory] = createBuffer(
@@ -631,11 +639,11 @@ Texture Renderer::createTexture(const std::string& path)
     auto [texture_image, texture_image_memory] = createImage(
         static_cast<uint32_t>(texture_width),
         static_cast<uint32_t>(texture_height),
-        1,
+        mip_levels,
         vk::SampleCountFlagBits::e1,
         vk::Format::eR8G8B8A8Srgb,
         vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
         vk::MemoryPropertyFlagBits::eDeviceLocal
     );
 
@@ -644,7 +652,7 @@ Texture Renderer::createTexture(const std::string& path)
         vk::ImageLayout::eUndefined, 
         vk::ImageLayout::eTransferDstOptimal,
         vk::ImageAspectFlagBits::eColor,
-        1
+        mip_levels
     );
     
     copyBufferToImage(
@@ -653,18 +661,19 @@ Texture Renderer::createTexture(const std::string& path)
         static_cast<uint32_t>(texture_width), static_cast<uint32_t>(texture_height)
     );
     
-    transitionImageLayout(
-        *texture_image, 
-        vk::ImageLayout::eTransferDstOptimal, 
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::ImageAspectFlagBits::eColor,
-        1
+    generateMipmaps(
+        *texture_image,
+        vk::Format::eR8G8B8A8Srgb,
+        static_cast<uint32_t>(texture_width),
+        static_cast<uint32_t> (texture_height),
+        mip_levels
     );
     
     vk::raii::ImageView image_view = createImageView(
         *texture_image, 
         vk::Format::eR8G8B8A8Srgb, 
-        vk::ImageAspectFlagBits::eColor, 1
+        vk::ImageAspectFlagBits::eColor, 
+        mip_levels
     );
     
     vk::raii::Sampler sampler = createSampler(); 
@@ -673,7 +682,8 @@ Texture Renderer::createTexture(const std::string& path)
         std::move(texture_image),
         std::move(texture_image_memory),
         std::move(image_view),
-        std::move(sampler)
+        std::move(sampler),
+        mip_levels
     );    
 }
 
@@ -728,7 +738,39 @@ DepthImage Renderer::createDepthResources(vk::Extent2D extent_2d)
         1
     );
 
-    return DepthImage(std::move(depth_image), std::move(depth_image_memory), std::move(image_view));
+    return DepthImage(
+        std::move(depth_image),
+        std::move(depth_image_memory),
+        std::move(image_view)
+    );
+}
+
+
+MsaaColorImage Renderer::createMsaaColorImage(vk::Extent2D extent_2d, vk::Format format)
+{
+    auto [msaa_color_image, msaa_color_image_memory] = createImage(
+        extent_2d.width,
+        extent_2d.height,
+        1,
+        context_.getMsaaSamples(),
+        format,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment,
+        vk::MemoryPropertyFlagBits::eDeviceLocal
+    );
+
+    vk::raii::ImageView image_view = createImageView(
+        *msaa_color_image,
+        format,
+        vk::ImageAspectFlagBits::eColor,
+        1
+    );
+
+    return MsaaColorImage(
+        std::move(msaa_color_image),
+        std::move(msaa_color_image_memory),
+        std::move(image_view)
+    );
 }
 
 

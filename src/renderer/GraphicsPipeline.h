@@ -18,7 +18,8 @@ public:
         const FrameDescriptorLayout& frame_descriptor_layout,
         const TextureDescriptorLayout& texture_descriptor_layout,
         vk::Format color_format,
-        vk::Format depth_format
+        vk::Format depth_format,
+        vk::SampleCountFlagBits msaa_samples
     );
 
     // Non-copyable (removing copyable constructors)
@@ -32,6 +33,7 @@ public:
         vk::Extent2D extent, 
         vk::Image image, 
         vk::ImageView image_view,
+        vk::ImageView msaa_color_image_view,
         const Mesh& mesh,
         vk::ImageView depth_image_view
     );
@@ -63,4 +65,5 @@ private:
     vk::raii::PipelineLayout layout_ = nullptr;
     vk::raii::Pipeline pipeline_ = nullptr;
     vk::Format depthFormat_;
+    vk::SampleCountFlagBits msaaSamples_;
 };

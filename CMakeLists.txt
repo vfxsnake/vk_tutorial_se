@@ -67,6 +67,7 @@ add_executable(VulkanTutorial
     src/renderer/descriptors/TextureDescriptorLayout.cpp
     src/renderer/image_resources/Texture.cpp
     src/renderer/image_resources/DepthImage.cpp
+    src/renderer/image_resources/MsaaColorImage.cpp
     src/utils/ModelLoader.cpp
 )
 

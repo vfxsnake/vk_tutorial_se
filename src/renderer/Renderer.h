@@ -9,6 +9,7 @@
 #include "buffers/UniformBufferObject.h"
 #include "image_resources/Texture.h"
 #include "image_resources/DepthImage.h"
+#include "image_resources/MsaaColorImage.h"
 
 // Forward Declarations
 class VulkanContext;
@@ -39,7 +40,8 @@ public:
         GraphicsPipeline& graphics_pipeline, 
         const Mesh& mesh,
         const UniformBufferObject& uniform_buffer_object,
-        vk::ImageView depth_image_view
+        vk::ImageView depth_image_view,
+        vk::ImageView msaa_color_image_view
     );
     
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
@@ -48,7 +50,9 @@ public:
     Texture createTexture(const std::string& path);
     void bindTextureToDescriptor(const Texture& texture);
 
-    DepthImage createDepthResources(vk::Extent2D extent_2d);
+    auto createDepthResources(vk::Extent2D extent_2d) -> DepthImage;
+
+    auto createMsaaColorImage(vk::Extent2D extent_2d, vk::Format format) -> MsaaColorImage;
 
     void generateMipmaps(
         vk::Image image,

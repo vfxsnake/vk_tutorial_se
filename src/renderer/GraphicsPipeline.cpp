@@ -15,11 +15,13 @@ GraphicsPipeline::GraphicsPipeline(
     const FrameDescriptorLayout& frame_descriptor_layout,
     const TextureDescriptorLayout& texture_descriptor_layout,
     vk::Format color_format,
-    vk::Format depth_format
+    vk::Format depth_format,
+    vk::SampleCountFlagBits msaa_samples
 ) : context_(context), 
     frameDescriptorLayout_(frame_descriptor_layout),
     textureDescriptorLayout_(texture_descriptor_layout),
-    depthFormat_(depth_format)
+    depthFormat_(depth_format),
+    msaaSamples_(msaa_samples)
 {
     createPipelineLayout();
     createPipeline(color_format);
@@ -107,7 +109,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
     };
 
     vk::PipelineMultisampleStateCreateInfo multi_sampling_state_create_info{
-        .rasterizationSamples = vk::SampleCountFlagBits::e1,
+        .rasterizationSamples = msaaSamples_,
         .sampleShadingEnable = vk::False
     };
 
@@ -212,12 +214,13 @@ void GraphicsPipeline::transitionImageLayout(
 }
 
 void GraphicsPipeline::record(
-    vk::CommandBuffer command_buffer, 
+    vk::CommandBuffer command_buffer,
     const vk::raii::DescriptorSet& descriptor_set,
     const vk::raii::DescriptorSet& texture_descriptor_set,
-    vk::Extent2D extent, 
+    vk::Extent2D extent,
     vk::Image image,
-    vk::ImageView image_view, 
+    vk::ImageView image_view,
+    vk::ImageView msaa_color_image_view,
     const Mesh& mesh,
     vk::ImageView depth_image_view
 )
@@ -250,10 +253,13 @@ void GraphicsPipeline::record(
     };
     
     vk::RenderingAttachmentInfo attachment_info{
-        .imageView = image_view,
+        .imageView = msaa_color_image_view,
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .resolveMode = vk::ResolveModeFlagBits::eAverage,
+        .resolveImageView = image_view,
+        .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
         .loadOp = vk::AttachmentLoadOp::eClear,
-        .storeOp = vk::AttachmentStoreOp::eStore,
+        .storeOp = vk::AttachmentStoreOp::eDontCare,
         .clearValue = clear_value
     };
 

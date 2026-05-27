@@ -14,6 +14,7 @@
 #include "renderer/descriptors/TextureDescriptorLayout.h"
 #include "renderer/image_resources/Texture.h"
 #include "renderer/image_resources/DepthImage.h"
+#include "renderer/image_resources/MsaaColorImage.h"
 #include "utils/ModelLoader.h"
 
 
@@ -65,12 +66,18 @@ void Application::initVulkan()
         *context_, *frameDescriptorLayout_, 
         *textureDescriptorLayout_, 
         swapChain_->getFormat(), 
-        context_->findDepthFormat()
+        context_->findDepthFormat(),
+        context_->getMsaaSamples()
     );
     
 
     renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_);
     renderer_->initializePerImageResources(swapChain_->getImageCount());
+
+    // creating multi-sample anti alias color image
+    msaaColorImage_ = std::make_unique<MsaaColorImage>(
+        renderer_->createMsaaColorImage(swapChain_->getExtent(),swapChain_->getFormat())
+    );
 
     // creating depth Image buffer
     depthImage_ = std::make_unique<DepthImage>(
@@ -104,7 +111,8 @@ void Application::mainLoop()
                 swapChain_->getExtent(), 
                 std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime_).count()
             ),
-            depthImage_->getImageView()
+            depthImage_->getImageView(),
+            msaaColorImage_->getImageView()
         );
 
         if (!was_frame_drawn || framebufferResized_)
@@ -134,6 +142,10 @@ void Application::onResize()
     swapChain_->recreate();
     renderer_->initializePerImageResources(swapChain_->getImageCount());
     
+    msaaColorImage_ = std::make_unique<MsaaColorImage>(
+        renderer_->createMsaaColorImage(swapChain_->getExtent(),swapChain_->getFormat())
+    );
+
     depthImage_ = std::make_unique<DepthImage>(
         renderer_->createDepthResources(swapChain_->getExtent())
     );

@@ -9,7 +9,8 @@ public:
         vk::raii::Image image,
         vk::raii::DeviceMemory device_memory,
         vk::raii::ImageView image_view,
-        vk::raii::Sampler sampler
+        vk::raii::Sampler sampler,
+        uint32_t mip_levels
     );
 
     // deleting copy constructures
@@ -29,5 +30,5 @@ private:
     vk::raii::DeviceMemory deviceMemory_ = nullptr;
     vk::raii::ImageView imageView_ = nullptr;
     vk::raii::Sampler sampler_ = nullptr;
-
+    uint32_t mipLevels_ = 1;
 };
