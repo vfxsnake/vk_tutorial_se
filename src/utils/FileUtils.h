@@ -9,7 +9,7 @@
 // Reads a SPIR-V binary File and returns Its contents as uint32_t words.
 // Throws std::runtime_error if the file cannot be opened.
 
-auto readSpirv(const std::string& file_path) -> std::vector<uint32_t>
+inline auto readSpirv(const std::string& file_path) -> std::vector<uint32_t>
 {
     std::ifstream spir_v_file(file_path, std::ios::ate | std::ios::binary);
     if (!spir_v_file.is_open())

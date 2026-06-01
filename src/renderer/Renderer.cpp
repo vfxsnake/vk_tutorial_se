@@ -4,6 +4,10 @@
 #include "GraphicsPipeline.h"
 #include "descriptors/FrameDescriptorLayout.h"
 #include "descriptors/TextureDescriptorLayout.h"
+#include "compute/ComputePipeline.h"
+#include "compute/ComputeUniformBufferObject.h"
+#include "compute/ParticleDescriptorLayout.h"
+#include "compute/ParticleGraphicsPipeline.h"
 
 #include <stdexcept>
 #include <cmath>
@@ -15,15 +19,20 @@
 Renderer::Renderer(
     VulkanContext& context, 
     const FrameDescriptorLayout& frame_descriptor_layout,
-    const TextureDescriptorLayout& texture_descriptor_layout
+    const TextureDescriptorLayout& texture_descriptor_layout,
+    const ComputePipeline& compute_pipeline,
+    const ParticleGraphicsPipeline& particle_graphics_pipeline
 ) : context_(context), 
     frameDescriptorLayout_(frame_descriptor_layout),
-    textureDescriptorLayout_(texture_descriptor_layout)
+    textureDescriptorLayout_(texture_descriptor_layout),
+    computePipeline_(compute_pipeline),
+    particleGraphicsPipeline_(particle_graphics_pipeline)
 {
     createCommandPool();
     createDescriptorPool();
     createTextureDescriptorPool();
     initializeFrameData();
+    createComputeDescriptorPool();
 
 }
 
@@ -53,6 +62,28 @@ void Renderer::createDescriptorPool()
     };
 
     descriptorPool_ = vk::raii::DescriptorPool(context_.getLogicalDevice(), descriptor_pool_create_info);
+}
+
+void Renderer::createComputeDescriptorPool()
+{
+    vk::DescriptorPoolSize descriptor_pool_size_1{
+        .type = vk::DescriptorType::eUniformBuffer,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+    };
+
+    vk::DescriptorPoolSize descriptor_pool_size_2{
+        .type = vk::DescriptorType::eStorageBuffer,
+        .descriptorCount = MAX_FRAMES_IN_FLIGHT * 2
+    };
+
+    std::array<vk::DescriptorPoolSize, 2> descriptor_pool_sizes{descriptor_pool_size_1, descriptor_pool_size_2};
+    vk::DescriptorPoolCreateInfo descriptor_pool_create_info{
+        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+        .maxSets = MAX_FRAMES_IN_FLIGHT,
+        .poolSizeCount = static_cast<uint32_t>(descriptor_pool_sizes.size()),
+        .pPoolSizes = descriptor_pool_sizes.data()
+    };
+    computeDescriptorPool_ = vk::raii::DescriptorPool(context_.getLogicalDevice(), descriptor_pool_create_info);
 }
 
 
@@ -888,3 +919,32 @@ void Renderer::generateMipmaps(
 	endSingleTimeCommands(std::move(command_buffer));
 
 }
+
+
+ void Renderer::createParticleSystem(const std::vector<Particle>& particles)
+ {
+    particleCount_ = static_cast<uint32_t>(particles.size());
+    uint32_t particle_buffer_size = sizeof(Particle) * particleCount_;
+
+    computeFrameSlots_.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (auto& compute_frame_slot : computeFrameSlots_)
+    {
+        auto [particles_buffer, particles_buffer_memory] = uploadBufferToDevice(
+            particles.data(), 
+            particle_buffer_size, 
+            vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+        );
+
+        compute_frame_slot.particleBuffer_ = std::move(particles_buffer);
+        compute_frame_slot.particleBufferMemory_ = std::move(particles_buffer_memory);
+    }
+
+    initializeComputeFrameSlots();    
+ }
+
+
+ void Renderer::initializeComputeFrameSlots()
+ {
+    
+ }

@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 #include <array>
+#include <vector>
 
 #include "RenderFrameSlot.h"
 #include "buffers/Vertex.h"
@@ -10,6 +11,9 @@
 #include "image_resources/Texture.h"
 #include "image_resources/DepthImage.h"
 #include "image_resources/MsaaColorImage.h"
+#include "ComputeFrameSlot.h"
+#include "buffers/Particle.h"
+
 
 // Forward Declarations
 class VulkanContext;
@@ -17,6 +21,8 @@ class SwapChain;
 class GraphicsPipeline;
 class FrameDescriptorLayout;
 class TextureDescriptorLayout;
+class ComputePipeline;
+class ParticleGraphicsPipeline;
 
 
 
@@ -28,7 +34,9 @@ public:
     Renderer(
         VulkanContext& context, 
         const FrameDescriptorLayout& frame_descriptor_layout,
-        const TextureDescriptorLayout& texture_descriptor_layout
+        const TextureDescriptorLayout& texture_descriptor_layout,
+        const ComputePipeline& compute_pipeline,
+        const ParticleGraphicsPipeline& particle_graphics_pipeline
     );
 
     // Non Copyable (removing copyable constructors)
@@ -62,12 +70,17 @@ public:
         uint32_t mip_levels
     );
 
+    void createParticleSystem(const std::vector<Particle>& particles);
+
 private:
     void createCommandPool();
     void createDescriptorPool();
     void createTextureDescriptorPool();
     void initializeFrameData();
     void createFinishedSemaphores(uint32_t image_count);
+
+    void createComputeDescriptorPool();
+    void initializeComputeFrameSlots();
     
     uint32_t findMemoryType(uint32_t type_filter, vk::MemoryPropertyFlags properties) const;
     
@@ -142,5 +155,11 @@ private:
     
     uint32_t currentFrame_ = 0;
     std::vector<vk::raii::Semaphore> renderFinishedSemaphores_;
+
+    const ComputePipeline& computePipeline_;
+    const ParticleGraphicsPipeline& particleGraphicsPipeline_;
+    vk::raii::DescriptorPool computeDescriptorPool_ = nullptr;
+    std::vector<ComputeFrameSlot> computeFrameSlots_;
+    uint32_t particleCount_ = 0; 
 
 };

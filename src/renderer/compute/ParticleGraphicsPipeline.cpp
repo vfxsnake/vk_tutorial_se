@@ -1,90 +1,70 @@
-#include "GraphicsPipeline.h"
-#include "core/VulkanContext.h"
-#include "utils/FileUtils.h"
-#include "renderer/buffers/Vertex.h"
-#include "renderer/buffers/Mesh.h"
-#include "renderer/descriptors/FrameDescriptorLayout.h"
-#include "renderer/descriptors/TextureDescriptorLayout.h"
+#include "ParticleGraphicsPipeline.h"
 
-#include <stdexcept>
+#include "core/VulkanContext.h"
+#include "ParticleDescriptorLayout.h"
+#include "utils/FileUtils.h"
+#include "renderer/buffers/Particle.h"
+
 #include <array>
 
-
-GraphicsPipeline::GraphicsPipeline(
+ParticleGraphicsPipeline::ParticleGraphicsPipeline(
     const VulkanContext& context, 
-    const FrameDescriptorLayout& frame_descriptor_layout,
-    const TextureDescriptorLayout& texture_descriptor_layout,
+    const ParticleDescriptorLayout& particle_descriptor_layout,
     vk::Format color_format,
     vk::Format depth_format,
-    vk::SampleCountFlagBits msaa_samples
-) : context_(context), 
-    frameDescriptorLayout_(frame_descriptor_layout),
-    textureDescriptorLayout_(texture_descriptor_layout),
+    vk::SampleCountFlagBits samples
+) :
+    context_(context),
+    particleDescriptorLayout_(particle_descriptor_layout),
     depthFormat_(depth_format),
-    msaaSamples_(msaa_samples)
+    msaaSamples_(samples)
 {
     createPipelineLayout();
     createPipeline(color_format);
 }
 
-
-void GraphicsPipeline::createPipelineLayout()
+void ParticleGraphicsPipeline::createPipelineLayout()
 {
-    std::array<vk::DescriptorSetLayout, 2> descriptor_layouts{
-        *frameDescriptorLayout_.getLayout(),
-        *textureDescriptorLayout_.getLayout()
-    };
-
+    vk::DescriptorSetLayout descriptor_layout = *particleDescriptorLayout_.getLayout();
     vk::PipelineLayoutCreateInfo pipeline_layout_create_info{
-        .setLayoutCount = static_cast<uint32_t>(descriptor_layouts.size()),
-        .pSetLayouts = descriptor_layouts.data()
+        .setLayoutCount = 1,
+        .pSetLayouts = &descriptor_layout
     };
     layout_ = context_.getLogicalDevice().createPipelineLayout(pipeline_layout_create_info);
 }
 
-
-vk::raii::ShaderModule GraphicsPipeline::createShaderModule(const std::string& spirv_path) const
+void ParticleGraphicsPipeline::createPipeline(vk::Format color_format)
 {
-    std::vector<uint32_t> shader_code = readSpirv(spirv_path);
-    vk::ShaderModuleCreateInfo shader_module_create_info = {
-        .codeSize = shader_code.size() * sizeof(uint32_t),
-        .pCode = shader_code.data()
-    };
-
-    return vk::raii::ShaderModule(context_.getLogicalDevice(), shader_module_create_info);
-}
-
-void GraphicsPipeline::createPipeline(vk::Format color_format)
-{
-    vk::raii::ShaderModule shader_module = createShaderModule("shaders/triangle.spv");
+    vk::raii::ShaderModule shader_module = createShaderModule("shaders/particles.spv");
     
     vk::PipelineShaderStageCreateInfo vertex_shader_stage_info{
         .stage = vk::ShaderStageFlagBits::eVertex,
-        .module = shader_module,
+        .module = *shader_module,
         .pName = "vertMain",
     };
 
     vk::PipelineShaderStageCreateInfo fragment_shader_stage_info{
         .stage = vk::ShaderStageFlagBits::eFragment,
-        .module = shader_module,
+        .module = *shader_module,
         .pName = "fragMain",
     };
 
     vk::PipelineShaderStageCreateInfo shader_stages[] = {vertex_shader_stage_info, fragment_shader_stage_info};
 
     // Getting descriptions directly from Vertex class static functions.
-    vk::VertexInputBindingDescription vertex_binding_description = Vertex::getBindingDescription();
-    auto vertex_attribute_descriptions =  Vertex::getAttributeDescriptions(); // std::array<vk::VertexInputAttributeDescription, n> n: number of attributes 
+    vk::VertexInputBindingDescription particle_binding_description = Particle::getBindingDescription();
+    auto vertex_attribute_descriptions =  Particle::getAttributeDescriptions(); // std::array<vk::VertexInputAttributeDescription, n> n: number of attributes 
     
-    vk::PipelineVertexInputStateCreateInfo vertex_input_info{
+    vk::PipelineVertexInputStateCreateInfo particle_input_info{
         .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &vertex_binding_description,
+        .pVertexBindingDescriptions = &particle_binding_description,
         .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attribute_descriptions.size()),
         .pVertexAttributeDescriptions = vertex_attribute_descriptions.data()
     };
     
     vk::PipelineInputAssemblyStateCreateInfo input_assembly{
-        .topology = vk::PrimitiveTopology::eTriangleList
+        .topology = vk::PrimitiveTopology::ePointList,
+        .primitiveRestartEnable = false
     };
 
     std::vector<vk::DynamicState> dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
@@ -102,8 +82,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
         .depthClampEnable = vk::False,
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eBack,
-        .frontFace = vk::FrontFace::eCounterClockwise,
+        .cullMode = vk::CullModeFlagBits::eNone,
         .depthBiasEnable = vk::False,
         .lineWidth = 1.0f
     };
@@ -114,11 +93,17 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
     };
 
     vk::PipelineColorBlendAttachmentState color_blend_attachment_state{
-        .blendEnable = vk::False,
+        .blendEnable = vk::True,
+        .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+        .dstColorBlendFactor = vk::BlendFactor::eOne,
+        .colorBlendOp       = vk::BlendOp::eAdd,
+        .srcAlphaBlendFactor = vk::BlendFactor::eOne,
+        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+        .alphaBlendOp       = vk::BlendOp::eAdd,
         .colorWriteMask = vk::ColorComponentFlagBits::eR | 
-                          vk::ColorComponentFlagBits::eG | 
-                          vk::ColorComponentFlagBits::eB | 
-                          vk::ColorComponentFlagBits::eA 
+                    vk::ColorComponentFlagBits::eG | 
+                    vk::ColorComponentFlagBits::eB | 
+                    vk::ColorComponentFlagBits::eA
     };
 
     vk::PipelineColorBlendStateCreateInfo color_blending{
@@ -130,7 +115,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
 
     vk::PipelineDepthStencilStateCreateInfo pipeline_depth_stencil_state_create_info{
         .depthTestEnable = vk::True,
-        .depthWriteEnable = vk::True,
+        .depthWriteEnable = vk::False,
         .depthCompareOp = vk::CompareOp::eLess,
         .depthBoundsTestEnable = vk::False,
         .stencilTestEnable = vk::False
@@ -139,7 +124,7 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
     vk::GraphicsPipelineCreateInfo graphics_pipeline_create_info{
         .stageCount = 2,
         .pStages = shader_stages,
-        .pVertexInputState = &vertex_input_info,
+        .pVertexInputState = &particle_input_info,
         .pInputAssemblyState = &input_assembly,
         .pViewportState = &viewport_state,
         .pRasterizationState = &rasterizer,
@@ -164,16 +149,20 @@ void GraphicsPipeline::createPipeline(vk::Format color_format)
 
     pipeline_ = vk::raii::Pipeline(context_.getLogicalDevice(), nullptr, pipeline_create_info_chain.get<vk::GraphicsPipelineCreateInfo>());
 
-} 
-
-
-const vk::raii::Pipeline& GraphicsPipeline::getPipeline() const
-{
-    return pipeline_;
 }
 
+vk::raii::ShaderModule ParticleGraphicsPipeline::createShaderModule(const std::string& spirv_path) const
+{
+    std::vector<uint32_t> shader_code = readSpirv(spirv_path);
+    vk::ShaderModuleCreateInfo shader_module_create_info = {
+        .codeSize = shader_code.size() * sizeof(uint32_t),
+        .pCode = shader_code.data()
+    };
 
-void GraphicsPipeline::transitionImageLayout(
+    return vk::raii::ShaderModule(context_.getLogicalDevice(), shader_module_create_info);
+}
+
+void ParticleGraphicsPipeline::transitionImageLayout(
         vk::CommandBuffer command_buffer,
         vk::Image image,
         vk::ImageLayout old_layout,
@@ -213,62 +202,35 @@ void GraphicsPipeline::transitionImageLayout(
     command_buffer.pipelineBarrier2(dependency_info);
 }
 
-void GraphicsPipeline::record(
+
+void ParticleGraphicsPipeline::record(
     vk::CommandBuffer command_buffer,
-    const vk::raii::DescriptorSet& descriptor_set,
-    const vk::raii::DescriptorSet& texture_descriptor_set,
     vk::Extent2D extent,
     vk::Image image,
-    vk::ImageView image_view,
-    vk::ImageView msaa_color_image_view,
-    const Mesh& mesh,
-    vk::ImageView depth_image_view
+    vk::ImageView color_view,
+    vk::ImageView depth_view,
+    vk::ImageView msaa_view,
+    const vk::raii::DescriptorSet& compute_descriptor_set,
+    vk::Buffer particle_buffer,
+    uint32_t particle_count
 )
 {
-    vk::CommandBufferBeginInfo command_buffer_begin_info{};
-    if (command_buffer.begin(&command_buffer_begin_info) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("unable to clean and start the command buffer begin");
-    }
-
-    transitionImageLayout(
-        command_buffer,
-        image,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        {},
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite
-    );
-    
-    vk::ClearValue clear_value{
-        .color = { // vk::CleanColorValue struct. using the float initializer
-            .float32 = std::array<float,4>{0.0f, 0.0f, 0.0f, 1.0f}
-        }
-    };
-
-    vk::ClearValue clear_depth{
-        .depthStencil = vk::ClearDepthStencilValue(1.0f, 0)
-    };
-    
+        
     vk::RenderingAttachmentInfo attachment_info{
-        .imageView = msaa_color_image_view,
+        .imageView = msaa_view,
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
         .resolveMode = vk::ResolveModeFlagBits::eAverage,
-        .resolveImageView = image_view,
+        .resolveImageView = color_view,
         .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .loadOp = vk::AttachmentLoadOp::eClear,
-        .storeOp = vk::AttachmentStoreOp::eStore,
-        .clearValue = clear_value
+        .loadOp = vk::AttachmentLoadOp::eLoad,
+        .storeOp = vk::AttachmentStoreOp::eDontCare
     };
 
     vk::RenderingAttachmentInfo depth_attachment_info{
-        .imageView = depth_image_view,
+        .imageView = depth_view,
         .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
-        .loadOp = vk::AttachmentLoadOp::eClear,
-        .storeOp = vk::AttachmentStoreOp::eDontCare,
-        .clearValue = clear_depth
+        .loadOp = vk::AttachmentLoadOp::eLoad,
+        .storeOp = vk::AttachmentStoreOp::eDontCare
     };
 
     vk::RenderingInfo rendering_info{
@@ -285,15 +247,11 @@ void GraphicsPipeline::record(
     command_buffer.beginRendering(rendering_info);
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
     
-    std::array<vk::DescriptorSet, 2> descriptor_sets{
-        *descriptor_set,
-        *texture_descriptor_set
-    };
     command_buffer.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         *layout_,
         0, 
-        descriptor_sets,
+        {*compute_descriptor_set},
         {}
     );
 
@@ -301,17 +259,17 @@ void GraphicsPipeline::record(
         0, 
         vk::Viewport(
             0.0f, // x 
-            static_cast<float>(extent.height), // y 
+            0.0f, // y
             static_cast<float>(extent.width), // width
-            -static_cast<float>(extent.height), // negative height
+            static_cast<float>(extent.height), // height
             0.0f, // min depth
             1.0f // max depth
         )
     );
     command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+    command_buffer.bindVertexBuffers(0, {particle_buffer}, {0});
+    command_buffer.draw(particle_count, 1, 0, 0);
     
-    mesh.bind(command_buffer);
-    command_buffer.drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0);
     command_buffer.endRendering();
 
     // transition the swap chain image to ePresenter source 
@@ -325,6 +283,5 @@ void GraphicsPipeline::record(
         vk::PipelineStageFlagBits2::eBottomOfPipe,
         {}
     );
-
-    command_buffer.end();
+  
 }

@@ -1726,6 +1726,32 @@ Run Windows smoke tests (T1–T7 in `docs/vulkan_implementation_plan_09-10_mipma
 
 ---
 
+## Session 62 — 2026-05-27
+
+**Start time:** 07:55 EDT
+**End time:** 10:07 EDT
+**Duration:** 2 hours 12 minutes
+
+**Covered:**
+- Step 1 complete: `src/renderer/buffers/Particle.h` — `position_`, `velocity_`, `color_` members, `getBindingDescription()`, `getAttributeDescriptions()` (location 0=position, location 1=color; velocity compute-only)
+- Step 2 complete: `src/renderer/compute/ComputeUniformBufferObject.h` — header-only, single `float deltaTime_` member
+- Step 3 complete: `src/renderer/compute/ParticleDescriptorLayout.h/.cpp` — three bindings (0=eUniformBuffer, 1=eStorageBuffer, 2=eStorageBuffer), all eCompute stage; added to CMakeLists.txt
+- Step 4 complete: `src/renderer/ComputeFrameSlot.h` — all RAII handles + mapped pointer + `updateComputeUniformBuffer()`; correct move-only semantics
+- Discussed: why particles use 2D position (NDC space, no MVP, compute-only chapter); `.location` is the shader slot number not array index; `const T&&` is not a valid move constructor (can't move from const)
+
+**Left off:**
+Step 4 done. Step 5 (`ComputePipeline.h/.cpp`) not yet started.
+
+**Next session starts at:**
+Step 5 — write `src/renderer/compute/ComputePipeline.h` header (model on `GraphicsPipeline.h`): constructor `(const VulkanContext&, const ParticleDescriptorLayout&)`, non-copyable, two private RAII members (`pipelineLayout_`, `pipeline_`), two private init methods, one public `record(vk::CommandBuffer, const vk::raii::DescriptorSet&, uint32_t particle_count)`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
+- `ParticleGraphicsPipeline::record()` must own the `ePresentSrcKHR` transition; `GraphicsPipeline::record()` transition must be removed when both pipelines are active.
+
+---
+
 ## Session 61 — 2026-05-26
 
 **Start time:** 08:10 EDT
@@ -1762,3 +1788,86 @@ Begin Ch11 implementation at Step 1 — write `src/renderer/buffers/Particle.h` 
 - Debug size prints in `Application.cpp` still pending removal.
 - `ParticleGraphicsPipeline::record()` must own the `ePresentSrcKHR` layout transition (last pass owns it); `GraphicsPipeline::record()` transition to `ePresentSrcKHR` must be removed when both pipelines are active.
 - `PARTICLE_COUNT = 256 * 500 = 128000` — must be divisible by `numthreads(256,1,1)` in compute shader.
+
+---
+
+## Session 63 — 2026-05-28
+
+**Start time:** 08:05 EDT
+**End time:** 10:36 EDT
+**Duration:** 2 hours 31 minutes
+
+**Covered:**
+- Wrote and reviewed `src/renderer/compute/ComputePipeline.h` — constructor, deleted copies, `record()` signature, reference members, RAII pipeline layout + pipeline members
+- Discussed why move semantics don't need to be defaulted (`ComputePipeline` is owned via `unique_ptr`, never returned by value from a factory — contrast with `DepthImage`)
+- Discussed why `createShaderModule` cannot be reused from `GraphicsPipeline` (it's private; `VulkanContext` doesn't own the pipeline) and why duplication is correct at this stage
+- Wrote and reviewed `src/renderer/compute/ComputePipeline.cpp` — constructor, `createPipelineLayout()`, `createPipeline()` with inlined shader module creation; entry point `"compMain"` is a placeholder pending the Slang shader
+- Bugs caught: `vk::Pipeline` → `vk::raii::Pipeline`, missing reference members, `createPipeline()` missing from constructor, `.module = shader_module` → `*shader_module`, naming nit `compute_shader_stageInfo` → `compute_shader_stage_info`
+
+**Left off:**
+Step 5 (`ComputePipeline.h/.cpp`) complete. Step 6 (`ParticleGraphicsPipeline.h/.cpp`) not yet started.
+
+**Next session starts at:**
+Step 6 — write `src/renderer/compute/ParticleGraphicsPipeline.h` (model on `GraphicsPipeline.h`, key differences: `ePointList` topology, `loadOp=eLoad`, depth write off, additive blending, owns the `ePresentSrcKHR` layout transition). Then implement `ParticleGraphicsPipeline.cpp`.
+
+**Open questions / notes:**
+- `"compMain"` entry point name in `ComputePipeline.cpp` is a placeholder — confirm when writing `shaders/particles.slang`.
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 64 — 2026-05-31
+
+**Start time:** 18:27 EDT
+**End time:** 22:03 EDT
+**Duration:** 3 hours 36 minutes
+
+**Covered:**
+- Step 6 complete: `src/renderer/compute/ParticleGraphicsPipeline.h/.cpp` written and reviewed
+  - Header: constructor, deleted copies, `record()` signature, private methods, all members including `context_`, `particleDescriptorLayout_`, RAII pipeline handles
+  - `createPipelineLayout()`: single descriptor set from `ParticleDescriptorLayout`
+  - `createPipeline()`: `ePointList` topology, `Particle` vertex input, additive blending (full factor set in correct designated initializer order), `depthWriteEnable = false`, `depthTestEnable = true`, MSAA wired, `StructureChain` with `PipelineRenderingCreateInfo`
+  - `transitionImageLayout()`: copied verbatim from `GraphicsPipeline.cpp`
+  - `record()`: no begin/end (Renderer manages CB lifetime), `loadOp = eLoad` on both color and depth attachments, correct viewport (no Y-flip for NDC particles), `bindVertexBuffers` + `draw`, final `eColorAttachmentOptimal → ePresentSrcKHR` transition
+  - `GraphicsPipeline.cpp` MSAA color `storeOp` changed `eDontCare → eStore` so pass 2 can load MSAA contents
+  - `FileUtils.h` `readSpirv` marked `inline` to fix multiple-definition linker error (three `.cpp` files now include it)
+  - `ComputePipeline.cpp` and `ParticleGraphicsPipeline.cpp` added to `CMakeLists.txt`
+  - WSL2 build clean
+
+**Left off:**
+Step 6 fully complete, clean build. Step 7 not yet started.
+
+**Next session starts at:**
+Step 7 — update `Renderer.h/.cpp`: add compute members (`computeFrameSlots_`, `computeDescriptorPool_`, `particleCount_`, `ComputePipeline` + `ParticleGraphicsPipeline` const-ref members), new private methods (`initializeComputeFrameSlots()`, `createComputeDescriptorPool()`), new public method `createParticleSystem()`. Read the Step 7 section of `vulkan_implementation_plan_11_compute_shader.md` before writing.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
+- `"compMain"` entry point name in `ComputePipeline.cpp` is a placeholder — confirm when writing `shaders/particles.slang`.
+
+---
+
+## Session 65 — 2026-06-01
+
+**Start time:** 07:58 EDT
+**End time:** 09:58 EDT
+**Duration:** 2 hours 0 minutes
+
+**Covered:**
+- Reviewed and approved `Renderer.h` — fixed three issues: `createComputeDescriptorPool()` and `initializeComputeFrameSlots()` moved to private, `computeDescriptorPool_` trailing underscore added, `initializeComputeFramesSlots` typo fixed
+- Implemented `createComputeDescriptorPool()` — two pool size entries (`eUniformBuffer × MAX_FRAMES_IN_FLIGHT`, `eStorageBuffer × MAX_FRAMES_IN_FLIGHT * 2`), `maxSets = MAX_FRAMES_IN_FLIGHT`, `eFreeDescriptorSet`
+- Implemented `createParticleSystem()` — stores `particleCount_`, resizes `computeFrameSlots_`, uploads initial particle data into each slot's `particleBuffer_` via `uploadBufferToDevice`, calls `initializeComputeFrameSlots()` at end
+
+**Left off:**
+`createParticleSystem()` complete. `initializeComputeFrameSlots()` not yet implemented — constructor and includes in `Renderer.cpp` also still pending.
+
+**Next session starts at:**
+1. Add includes to `Renderer.cpp`: `compute/ComputePipeline.h`, `compute/ParticleGraphicsPipeline.h`, `compute/ParticleDescriptorLayout.h`, `compute/ComputeUniformBufferObject.h`
+2. Update `Renderer` constructor: add new params to signature + initializer list (`computePipeline_`, `particleGraphicsPipeline_`, `particleDescriptorLayout_`), add `createComputeDescriptorPool()` call
+3. Implement `initializeComputeFrameSlots()` — indexed loop, per slot: command buffer, signalled fence, semaphore, compute UBO buffer + mapMemory, descriptor set allocation + three WriteDescriptorSet entries (binding 0=UBO, binding 1=prev-slot particleBuffer_, binding 2=this-slot particleBuffer_)
+
+**Open questions / notes:**
+- `initializeComputeFrameSlots()` needs `particleDescriptorLayout_` — confirm it's in the constructor initializer list before implementing.
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
