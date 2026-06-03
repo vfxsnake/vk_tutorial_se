@@ -18,22 +18,23 @@
 
 Renderer::Renderer(
     VulkanContext& context, 
-    const FrameDescriptorLayout& frame_descriptor_layout,
     const TextureDescriptorLayout& texture_descriptor_layout,
+    const FrameDescriptorLayout& frame_descriptor_layout,
     const ComputePipeline& compute_pipeline,
-    const ParticleGraphicsPipeline& particle_graphics_pipeline
+    const ParticleGraphicsPipeline& particle_graphics_pipeline,
+    const ParticleDescriptorLayout& particle_descriptor_layout
 ) : context_(context), 
     frameDescriptorLayout_(frame_descriptor_layout),
     textureDescriptorLayout_(texture_descriptor_layout),
     computePipeline_(compute_pipeline),
-    particleGraphicsPipeline_(particle_graphics_pipeline)
+    particleGraphicsPipeline_(particle_graphics_pipeline),
+    particleDescriptorLayout_(particle_descriptor_layout)
 {
     createCommandPool();
     createDescriptorPool();
     createTextureDescriptorPool();
     initializeFrameData();
     createComputeDescriptorPool();
-
 }
 
 void Renderer::createCommandPool()
@@ -139,7 +140,7 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
     {
         // refer to create command Buffer function from the Vulkan tutorial.
         vk::CommandBufferAllocateInfo command_buffer_allocate_info{
-            .commandPool = commandPool_,
+            .commandPool = *commandPool_,
             .level = vk::CommandBufferLevel::ePrimary,
             .commandBufferCount = 1
         };
@@ -198,9 +199,48 @@ bool Renderer::drawFrame(
     const Mesh& mesh,
     const UniformBufferObject& uniform_buffer_object,
     vk::ImageView depth_image_view,
-    vk::ImageView msaa_color_image_view
+    vk::ImageView msaa_color_image_view,
+    float delta_time
 )
-{
+{   
+    // Compute Block
+    // compute wait of fence
+    vk::Result compute_fence_result = context_.getLogicalDevice().waitForFences(
+        *(computeFrameSlots_[currentFrame_].computeInflightFence_), 
+        vk::True, 
+        UINT64_MAX
+    );
+
+    if(compute_fence_result != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("failed to wait for compute fence!");
+    }
+
+    computeFrameSlots_[currentFrame_].updateComputeUniformBuffer(
+        {delta_time} // right hand side initialized ComputeUniformBufferObject
+    );
+
+    context_.getLogicalDevice().resetFences(*(computeFrameSlots_[currentFrame_].computeInflightFence_));
+    computeFrameSlots_[currentFrame_].computeCommandBuffer_.reset();
+    computePipeline_.record(
+        *(computeFrameSlots_[currentFrame_].computeCommandBuffer_),
+        computeFrameSlots_[currentFrame_].descriptorSet_,
+        particleCount_
+    );
+
+    const vk::SubmitInfo submit_compute_info{
+        .waitSemaphoreCount = 0,
+        .pWaitSemaphores = nullptr,
+        .pWaitDstStageMask = nullptr,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &*(computeFrameSlots_[currentFrame_].computeCommandBuffer_),
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &*(computeFrameSlots_[currentFrame_].computeFinishedSemaphore_)
+    };
+
+    context_.getQueue().submit(submit_compute_info, *(computeFrameSlots_[currentFrame_].computeInflightFence_));
+
+    // Graphics block 
     // CPU side fence: waiting for gpu task finishes
     vk::Result fence_result = context_.getLogicalDevice().waitForFences(
         *(renderFrameSlots_[currentFrame_].inFlightFence_), 
@@ -240,6 +280,9 @@ bool Renderer::drawFrame(
     // reseting the command buffer
     renderFrameSlots_[currentFrame_].commandBuffer_.reset();
     
+    // starting the buffer .begin
+    vk::CommandBufferBeginInfo command_buffer_begin_info{};
+    renderFrameSlots_[currentFrame_].commandBuffer_.begin(command_buffer_begin_info);
     // recording the command buffer using the graphics_pipeline record command
     graphics_pipeline.record(
         renderFrameSlots_[currentFrame_].commandBuffer_,
@@ -252,6 +295,20 @@ bool Renderer::drawFrame(
         mesh,
         depth_image_view
     );
+
+    particleGraphicsPipeline_.record(
+        renderFrameSlots_[currentFrame_].commandBuffer_,
+        swap_chain.getExtent(),
+        swap_chain.getImage(image_index),
+        swap_chain.getImageView(image_index),
+        depth_image_view,
+        msaa_color_image_view,
+        computeFrameSlots_[currentFrame_].descriptorSet_,
+        *computeFrameSlots_[currentFrame_].particleBuffer_,
+        particleCount_
+    );
+
+    renderFrameSlots_[currentFrame_].commandBuffer_.end();
 
     static constexpr vk::PipelineStageFlags wait_destination_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
@@ -946,5 +1003,93 @@ void Renderer::generateMipmaps(
 
  void Renderer::initializeComputeFrameSlots()
  {
-    
+    for (uint32_t i=0; i<MAX_FRAMES_IN_FLIGHT; i++) 
+    {
+        vk::CommandBufferAllocateInfo command_buffer_allocate_info{
+            .commandPool = *commandPool_,
+            .level = vk::CommandBufferLevel::ePrimary,
+            .commandBufferCount = 1
+        };
+
+        std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(command_buffer_allocate_info);
+        computeFrameSlots_[i].computeCommandBuffer_ = std::move(buffers[0]); // pointing to the first commandBuffer from the command count.
+        
+        computeFrameSlots_[i].computeInflightFence_ = vk::raii::Fence(
+            context_.getLogicalDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled}
+        );
+
+        // refer to CreteSyncObjects() in the vulkan tutorial.
+        computeFrameSlots_[i].computeFinishedSemaphore_ = vk::raii::Semaphore(context_.getLogicalDevice(), vk::SemaphoreCreateInfo());
+        
+
+        auto [compute_uniform_buffer, compute_uniform_buffer_memory] = createBuffer(
+            sizeof(ComputeUniformBufferObject), 
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+
+        // initializing frame slot uniform buffer
+        computeFrameSlots_[i].computeUniformBuffer_ = std::move(compute_uniform_buffer);
+        computeFrameSlots_[i].computeUniformBufferMemory_ = std::move(compute_uniform_buffer_memory);
+        computeFrameSlots_[i].computeUniformBufferMemoryMapped_ = computeFrameSlots_[i].computeUniformBufferMemory_.mapMemory(0, sizeof(ComputeUniformBufferObject));
+
+        // allocating descriptor set
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{
+            .descriptorPool = *computeDescriptorPool_,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &*(particleDescriptorLayout_.getLayout())
+        };
+
+        std::vector<vk::raii::DescriptorSet> description_sets = context_.getLogicalDevice().allocateDescriptorSets(descriptor_set_allocate_info);
+        
+        computeFrameSlots_[i].descriptorSet_ = std::move(description_sets.front());
+
+        vk::DescriptorBufferInfo descriptor_buffer_info_0{
+            .buffer = *computeFrameSlots_[i].computeUniformBuffer_,
+            .offset = 0,
+            .range = sizeof(ComputeUniformBufferObject)
+        };
+
+        vk::DescriptorBufferInfo descriptor_buffer_info_1{
+            .buffer = *computeFrameSlots_[(i + MAX_FRAMES_IN_FLIGHT - 1)% MAX_FRAMES_IN_FLIGHT].particleBuffer_,
+            .offset = 0,
+            .range = sizeof(Particle) * particleCount_
+        };
+
+        vk::DescriptorBufferInfo descriptor_buffer_info_2{
+            .buffer = *computeFrameSlots_[i].particleBuffer_,
+            .offset = 0,
+            .range = sizeof(Particle) *particleCount_
+        };
+
+        vk::WriteDescriptorSet write_descriptor_set_0{
+            .dstSet = *computeFrameSlots_[i].descriptorSet_,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .pBufferInfo = &descriptor_buffer_info_0
+        };
+
+        vk::WriteDescriptorSet write_descriptor_set_1{
+            .dstSet = *computeFrameSlots_[i].descriptorSet_,
+            .dstBinding = 1,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eStorageBuffer,
+            .pBufferInfo = &descriptor_buffer_info_1
+        };
+
+        vk::WriteDescriptorSet write_descriptor_set_2{
+            .dstSet = *computeFrameSlots_[i].descriptorSet_,
+            .dstBinding = 2,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eStorageBuffer,
+            .pBufferInfo = &descriptor_buffer_info_2
+        };
+
+
+        context_.getLogicalDevice().updateDescriptorSets(
+            {write_descriptor_set_0, write_descriptor_set_1, write_descriptor_set_2}, 
+            {}
+        );
+    }
  }

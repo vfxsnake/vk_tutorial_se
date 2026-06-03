@@ -55,3 +55,26 @@ void ComputePipeline::createPipeline()
 
     pipeline_ = vk::raii::Pipeline(context_.getLogicalDevice(), nullptr, pipeline_create_info);
 }
+
+void ComputePipeline::record(
+        vk::CommandBuffer command_buffer,
+        const vk::raii::DescriptorSet& descriptor_set,
+        uint32_t particle_count
+    ) const
+{
+    vk::CommandBufferBeginInfo begin_info{
+        .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+    };
+
+    command_buffer.begin(begin_info);
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, *pipeline_);
+    command_buffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, 
+        *pipelineLayout_, 
+        0, 
+        {*descriptor_set},
+        {}
+    );
+    command_buffer.dispatch(particle_count / 256, 1, 1);
+    command_buffer.end();
+}

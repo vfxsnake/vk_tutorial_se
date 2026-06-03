@@ -225,12 +225,6 @@ void GraphicsPipeline::record(
     vk::ImageView depth_image_view
 )
 {
-    vk::CommandBufferBeginInfo command_buffer_begin_info{};
-    if (command_buffer.begin(&command_buffer_begin_info) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("unable to clean and start the command buffer begin");
-    }
-
     transitionImageLayout(
         command_buffer,
         image,
@@ -313,18 +307,4 @@ void GraphicsPipeline::record(
     mesh.bind(command_buffer);
     command_buffer.drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0);
     command_buffer.endRendering();
-
-    // transition the swap chain image to ePresenter source 
-    transitionImageLayout(
-        command_buffer,
-        image,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageLayout::ePresentSrcKHR,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::PipelineStageFlagBits2::eBottomOfPipe,
-        {}
-    );
-
-    command_buffer.end();
 }

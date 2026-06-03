@@ -1871,3 +1871,56 @@ Step 7 — update `Renderer.h/.cpp`: add compute members (`computeFrameSlots_`, 
 - `initializeComputeFrameSlots()` needs `particleDescriptorLayout_` — confirm it's in the constructor initializer list before implementing.
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 66 — 2026-06-02
+
+**Start time:** 08:32 EDT
+**End time:** 10:08 EDT
+**Duration:** 1 hour 36 minutes
+
+**Covered:**
+- Added four compute includes to `Renderer.cpp` (`ComputePipeline.h`, `ParticleGraphicsPipeline.h`, `ParticleDescriptorLayout.h`, `ComputeUniformBufferObject.h`)
+- Added `const ParticleDescriptorLayout&` parameter and `particleDescriptorLayout_` member to `Renderer.h` (was missed in session 65)
+- Updated `Renderer` constructor — all six parameters wired, initializer list order corrected to match declaration order, `createComputeDescriptorPool()` call added to body
+- Implemented `initializeComputeFrameSlots()` in full — indexed loop: command buffer, signalled fence, semaphore, compute UBO buffer + mapMemory, descriptor set allocation, three `WriteDescriptorSet` entries (binding 0=UBO, binding 1=prev-slot `particleBuffer_`, binding 2=this-slot `particleBuffer_`), `updateDescriptorSets`
+- Discussed: implicit `vk::raii::CommandPool` → `vk::CommandPool` conversion (both `commandPool_` and `*commandPool_` work; `*` form is more explicit and preferred)
+
+**Left off:**
+Step 7 (`Renderer` compute wiring) fully complete. Step 8 (`drawFrame()` compute pass) not yet started.
+
+**Next session starts at:**
+Step 8 — update `drawFrame()` in `Renderer.cpp` to dispatch the compute pass before the graphics pass: wait on compute fence, reset compute fence, record compute commands via `computePipeline_.record()`, submit compute queue with `computeFinishedSemaphore_` as signal and `eVertexInput` wait stage on the graphics submit.
+
+**Open questions / notes:**
+- Initializer list order in `Renderer.cpp` constructor corrected — should match declaration order in header to avoid `-Wreorder` warnings.
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 67 — 2026-06-03
+
+**Start time:** 08:02 EDT
+
+**End time:** 10:24 EDT
+**Duration:** 2 hours 22 minutes
+
+**Covered:**
+- Identified missing `ComputePipeline::record()` implementation from session 63 — implemented it: `begin(eOneTimeSubmit)`, `bindPipeline(eCompute)`, `bindDescriptorSets`, `dispatch(particle_count / 256)`, `end()`
+- Architecture discussion: `GraphicsPipeline::record()` had `begin()`/`end()` and `ePresentSrcKHR` transition — removed all three so Renderer owns the full graphics CB lifetime
+- Marked `ComputePipeline::record()` and `ParticleGraphicsPipeline::record()` as `const` (both stored as `const&` members in Renderer)
+- Added `float delta_time` parameter to `drawFrame()` in `Renderer.h` and `Renderer.cpp`
+- Implemented full compute block in `drawFrame()`: compute fence wait, UBO update, fence reset, CB reset, `computePipeline_.record()`, compute submit (no wait semaphores, signals `computeFinishedSemaphore_`, fenced with `computeInflightFence_`)
+- Implemented graphics record section: `commandBuffer_.begin()`, `graphics_pipeline.record()` (pass 1), `particleGraphicsPipeline_.record()` (pass 2), `commandBuffer_.end()`
+
+**Left off:**
+Item 6 of Step 8 not yet done — graphics submit still uses single wait semaphore; needs updating to wait on both `imageAvailableSemaphore_` (at `eColorAttachmentOutput`) and `computeFinishedSemaphore_` (at `eVertexInput`).
+
+**Next session starts at:**
+Update the graphics `submit_info` in `drawFrame()` to use two wait semaphores: `std::array` of both semaphore handles and both stage masks, `waitSemaphoreCount = 2`, `.data()` for both pointer fields.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints in `Application.cpp` still pending removal.

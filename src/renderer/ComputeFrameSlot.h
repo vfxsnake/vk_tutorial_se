@@ -15,7 +15,7 @@ struct ComputeFrameSlot
     // uniform buffers
     vk::raii::Buffer computeUniformBuffer_ = nullptr;
     vk::raii::DeviceMemory computeUniformBufferMemory_ = nullptr;
-    void* computeUniformBufferMapped_ = nullptr;
+    void* computeUniformBufferMemoryMapped_ = nullptr;
 
     vk::raii::DescriptorSet descriptorSet_ = nullptr;
 
@@ -29,6 +29,6 @@ struct ComputeFrameSlot
     
     void updateComputeUniformBuffer(const ComputeUniformBufferObject& compute_unform_buffer)
     {
-        std::memcpy(computeUniformBufferMapped_, &compute_unform_buffer, sizeof(compute_unform_buffer));
+        std::memcpy(computeUniformBufferMemoryMapped_, &compute_unform_buffer, sizeof(compute_unform_buffer));
     }
 };

@@ -213,7 +213,7 @@ void ParticleGraphicsPipeline::record(
     const vk::raii::DescriptorSet& compute_descriptor_set,
     vk::Buffer particle_buffer,
     uint32_t particle_count
-)
+) const
 {
         
     vk::RenderingAttachmentInfo attachment_info{

@@ -24,7 +24,7 @@ public:
         vk::CommandBuffer command_buffer,
         const vk::raii::DescriptorSet& descriptor_set,
         uint32_t particle_count
-    );
+    ) const;
 
 private:
     void createPipelineLayout();

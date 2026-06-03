@@ -71,7 +71,7 @@ void Application::initVulkan()
     );
     
 
-    renderer_ = std::make_unique<Renderer>(*context_, *frameDescriptorLayout_, *textureDescriptorLayout_);
+    renderer_ = std::make_unique<Renderer>(*context_, *textureDescriptorLayout_,*frameDescriptorLayout_);
     renderer_->initializePerImageResources(swapChain_->getImageCount());
 
     // creating multi-sample anti alias color image

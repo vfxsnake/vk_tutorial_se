@@ -23,6 +23,7 @@ class FrameDescriptorLayout;
 class TextureDescriptorLayout;
 class ComputePipeline;
 class ParticleGraphicsPipeline;
+class ParticleDescriptorLayout;
 
 
 
@@ -32,11 +33,12 @@ public:
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
     Renderer(
-        VulkanContext& context, 
-        const FrameDescriptorLayout& frame_descriptor_layout,
+        VulkanContext& context,
         const TextureDescriptorLayout& texture_descriptor_layout,
+        const FrameDescriptorLayout& frame_descriptor_layout,
         const ComputePipeline& compute_pipeline,
-        const ParticleGraphicsPipeline& particle_graphics_pipeline
+        const ParticleGraphicsPipeline& particle_graphics_pipeline,
+        const ParticleDescriptorLayout& particle_descriptor_layout
     );
 
     // Non Copyable (removing copyable constructors)
@@ -49,7 +51,8 @@ public:
         const Mesh& mesh,
         const UniformBufferObject& uniform_buffer_object,
         vk::ImageView depth_image_view,
-        vk::ImageView msaa_color_image_view
+        vk::ImageView msaa_color_image_view,
+        float delta_time
     );
     
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
@@ -158,6 +161,7 @@ private:
 
     const ComputePipeline& computePipeline_;
     const ParticleGraphicsPipeline& particleGraphicsPipeline_;
+    const ParticleDescriptorLayout& particleDescriptorLayout_;
     vk::raii::DescriptorPool computeDescriptorPool_ = nullptr;
     std::vector<ComputeFrameSlot> computeFrameSlots_;
     uint32_t particleCount_ = 0; 
