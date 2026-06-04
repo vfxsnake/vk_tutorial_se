@@ -1924,3 +1924,84 @@ Update the graphics `submit_info` in `drawFrame()` to use two wait semaphores: `
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints in `Application.cpp` still pending removal.
+
+---
+
+## Session 68 — 2026-06-04
+
+**Start time:** 08:01 EDT
+**End time:** 09:01 EDT
+**Duration:** 1 hour 0 minutes
+
+**Covered:**
+- Fixed graphics `submit_info` — replaced single wait semaphore with `std::array<vk::PipelineStageFlags, 2>` and `std::array<vk::Semaphore, 2>` waiting on both `imageAvailableSemaphore_` (at `eColorAttachmentOutput`) and `computeFinishedSemaphore_` (at `eVertexInput`); Step 8 complete
+- Fixed `ComputeFrameSlot` — added `ComputeFrameSlot() = default;` so `vector::resize()` can default-construct slots (declaring move ctor as `= default` suppresses the implicit default ctor)
+- Step 9 (Application wiring) partially complete:
+  - `Application.h` — added forward declarations for `ParticleDescriptorLayout`, `ComputePipeline`, `ParticleGraphicsPipeline`; added `#include "renderer/buffers/Particle.h"`; added three new `unique_ptr` members in correct destruction order (before `renderer_`); added `lastFrameTime_`, `PARTICLE_COUNT = 256 * 500`, `generateParticles()` declaration
+  - `Application.cpp` — added three `make_unique` calls for new pipeline objects before `renderer_`; fixed `Renderer` constructor to pass all 6 args; added `renderer_->createParticleSystem(generateParticles())` at end of `initVulkan()`
+
+**Left off:**
+Step 9 almost complete — `mainLoop()` not yet updated with delta time, `lastFrameTime_` not yet initialized in constructor initialiser list, `generateParticles()` body not yet written.
+
+**Next session starts at:**
+1. Add `lastFrameTime_` to the constructor initialiser list alongside `startTime_`
+2. Update `mainLoop()` — compute `delta_time` from `lastFrameTime_`, update `lastFrameTime_`, pass `delta_time` as 7th arg to `drawFrame()`
+3. Write `generateParticles()` body — `PARTICLE_COUNT` particles in a ring pattern using `std::default_random_engine` + `std::uniform_real_distribution`
+4. Build and fix any remaining compile errors
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 69 — 2026-06-04
+
+**Start time:** 09:23 EDT
+**End time:** 11:05 EDT
+**Duration:** 1 hour 42 minutes
+
+**Covered:**
+- Completed Step 9 (Application wiring): `lastFrameTime_` initialised at top of `mainLoop()` (not constructor — avoids load-time spike), delta time computed before `drawFrame()`, `lastFrameTime_` updated to `current_time` (not a second `now()` call)
+- Completed `generateParticles()` — ring/disc pattern, `glm::pi<float>()`, `static_cast<float>(HEIGHT)/WIDTH` float division fix, `return particles;` added
+- Wrote `shaders/particles.slang` — `VSInput` with `[[vk::location(0/1)]]`, `VSOutput`/`PSInput` with `SV_PointSize`/`SV_PointCoord`, soft circular particle via `0.5 - length(coord)`, compute entry point with bounce logic, explicit `[vk::binding(N,0)]` annotations
+- Updated `CMakeLists.txt` — separate `TRIANGLE_ENTRY_POINTS` / `PARTICLE_ENTRY_POINTS` variables, separate `add_custom_command` for `particles.spv`, single `add_custom_target(Shaders ...)` depending on both SPV files
+- Debugged invisible particles: depth test failure (Z=1.0 with `eLess` against clear value 1.0) — fixed vertex shader to `float4(inPosition, 0.0, 1.0)`
+- Debugged particle blob at center: delta_time units mismatch (seconds vs milliseconds) — fixed by scaling velocity from `0.00025f` to `0.25f` in `generateParticles()`
+- All T1–T7 smoke tests pass: viking room + particles visible, resize/minimise clean, validation layers silent
+
+**Left off:**
+Chapter 11 (Compute Shader) fully complete and verified on Windows.
+
+**Next session starts at:**
+Begin Chapter 16 (Multiple Objects) — request the markdown for chapter 16, then proceed with architecture discussion.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+
+---
+
+## Session 70 — 2026-06-04
+
+**Start time:** ~11:10 EDT
+**End time:** 11:28 EDT
+**Duration:** ~18 minutes
+
+**Covered:**
+- Project retrospective: ~110h tracked across 56 timed sessions (13 sessions untracked); real total estimated 123–133h
+- Progress audit: 9 of 12 chapter groups complete (~75%); Ch16, Ch17, Ch18 remaining before "Building a Simple Engine"
+- Estimated ~20 sessions (~4–5 weeks) to reach "Building a Simple Engine"
+- Researched two break projects: TinyRenderer (~5–6 sessions) and Ray Tracing in One Weekend (~8–10 sessions)
+- **Agreed updated roadmap:** Ch16 → Ch17 → [Break: TinyRenderer + RT in One Weekend] → Ch18 → Building a Simple Engine
+- Rationale: doing the ray tracing algorithm in pure C++ before Ch18 means Ch18 becomes "mapping the algorithm onto GPU hardware" rather than learning both simultaneously
+
+**Left off:**
+Planning session — no implementation work done.
+
+**Next session starts at:**
+Begin Chapter 16 (Multiple Objects) — request the markdown for chapter 16, then proceed with architecture discussion.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Break projects planned between Ch17 and Ch18: TinyRenderer (https://haqr.eu/tinyrenderer/) + Ray Tracing in One Weekend (https://raytracing.github.io/books/RayTracingInOneWeekend.html)
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.

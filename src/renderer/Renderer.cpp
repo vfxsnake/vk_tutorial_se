@@ -310,12 +310,20 @@ bool Renderer::drawFrame(
 
     renderFrameSlots_[currentFrame_].commandBuffer_.end();
 
-    static constexpr vk::PipelineStageFlags wait_destination_stage_mask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    std::array<vk::PipelineStageFlags, 2> wait_destination_stage_masks = {
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eVertexInput
+    };
+
+    std::array<vk::Semaphore, 2> wait_semaphores = {
+        *(renderFrameSlots_[currentFrame_].imageAvailableSemaphore_),
+        *(computeFrameSlots_[currentFrame_].computeFinishedSemaphore_)
+    };
 
     const vk::SubmitInfo submit_info{
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*(renderFrameSlots_[currentFrame_].imageAvailableSemaphore_),
-        .pWaitDstStageMask = &wait_destination_stage_mask,
+        .waitSemaphoreCount = 2,
+        .pWaitSemaphores = wait_semaphores.data(),
+        .pWaitDstStageMask = wait_destination_stage_masks.data(),
         .commandBufferCount = 1,
         .pCommandBuffers = &*(renderFrameSlots_[currentFrame_].commandBuffer_),
         .signalSemaphoreCount = 1,

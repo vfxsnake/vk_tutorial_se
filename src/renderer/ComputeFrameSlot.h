@@ -19,6 +19,7 @@ struct ComputeFrameSlot
 
     vk::raii::DescriptorSet descriptorSet_ = nullptr;
 
+    ComputeFrameSlot() = default;    
     // deleting copy constructors
     ComputeFrameSlot(const ComputeFrameSlot&) = delete;
     ComputeFrameSlot& operator =(const ComputeFrameSlot&) = delete;

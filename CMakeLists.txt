@@ -104,19 +104,34 @@ endif()
 
 set(SHADERS_DIR ${CMAKE_SOURCE_DIR}/shaders)
 set(SHADER_SOURCES ${SHADERS_DIR}/triangle.slang)
-set(ENTRY_POINTS -entry vertMain -entry fragMain)
+set(TRIANGLE_ENTRY_POINTS -entry vertMain -entry fragMain)
+set(PARTICLES_SOURCES ${SHADERS_DIR}/particles.slang)
+set(PARTICLE_ENTRY_POINTS -entry vertMain -entry fragMain -entry compMain)
 
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/shaders/triangle.spv 
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/shaders
-    COMMAND ${SLANG_C} ${SHADER_SOURCES} -target spirv -profile spirv_1_4+spvRayQueryKHR -emit-spirv-directly -fvk-use-entrypoint-name ${ENTRY_POINTS} -o ${CMAKE_BINARY_DIR}/shaders/triangle.spv 
+    COMMAND ${SLANG_C} ${SHADER_SOURCES} -target spirv -profile spirv_1_4+spvRayQueryKHR -emit-spirv-directly -fvk-use-entrypoint-name ${TRIANGLE_ENTRY_POINTS} -o ${CMAKE_BINARY_DIR}/shaders/triangle.spv 
     WORKING_DIRECTORY ${SHADERS_DIR}
     DEPENDS ${SHADERS_DIR} ${SHADER_SOURCES}
     COMMENT "compiling slang shaders"
     VERBATIM
 )
 
-add_custom_target(Shaders DEPENDS ${CMAKE_BINARY_DIR}/shaders/triangle.spv)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/shaders/particles.spv 
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/shaders
+    COMMAND ${SLANG_C} ${PARTICLES_SOURCES} -target spirv -profile spirv_1_4+spvRayQueryKHR -emit-spirv-directly -fvk-use-entrypoint-name ${PARTICLE_ENTRY_POINTS} -o ${CMAKE_BINARY_DIR}/shaders/particles.spv 
+    WORKING_DIRECTORY ${SHADERS_DIR}
+    DEPENDS ${SHADERS_DIR} ${PARTICLES_SOURCES}
+    COMMENT "compiling slang shaders"
+    VERBATIM
+)
+
+add_custom_target(Shaders DEPENDS 
+    ${CMAKE_BINARY_DIR}/shaders/triangle.spv
+    ${CMAKE_BINARY_DIR}/shaders/particles.spv
+)
 add_dependencies(VulkanTutorial Shaders)
 
 #Copy assets to build output directory

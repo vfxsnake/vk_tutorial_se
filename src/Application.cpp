@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <random>
 
 #include "core/VulkanContext.h"
 #include "core/SwapChain.h"
@@ -15,6 +16,9 @@
 #include "renderer/image_resources/Texture.h"
 #include "renderer/image_resources/DepthImage.h"
 #include "renderer/image_resources/MsaaColorImage.h"
+#include "renderer/compute/ParticleDescriptorLayout.h"
+#include "renderer/compute/ComputePipeline.h"
+#include "renderer/compute/ParticleGraphicsPipeline.h"
 #include "utils/ModelLoader.h"
 
 
@@ -70,8 +74,26 @@ void Application::initVulkan()
         context_->getMsaaSamples()
     );
     
+    particleDescriptorLayout_ = std::make_unique<ParticleDescriptorLayout>(*context_);
+    computePipeline_ = std::make_unique<ComputePipeline>(*context_, *particleDescriptorLayout_);
+    particleGraphicsPipeline_ = std::make_unique<ParticleGraphicsPipeline>(
+        *context_,
+        *particleDescriptorLayout_,
+        swapChain_->getFormat(),
+        context_->findDepthFormat(),
+        context_->getMsaaSamples()
+    );
 
-    renderer_ = std::make_unique<Renderer>(*context_, *textureDescriptorLayout_,*frameDescriptorLayout_);
+
+    renderer_ = std::make_unique<Renderer>(
+        *context_, 
+        *textureDescriptorLayout_,
+        *frameDescriptorLayout_,
+        *computePipeline_,
+        *particleGraphicsPipeline_,
+        *particleDescriptorLayout_
+    );
+
     renderer_->initializePerImageResources(swapChain_->getImageCount());
 
     // creating multi-sample anti alias color image
@@ -93,15 +115,22 @@ void Application::initVulkan()
     std::cout << "indices size: " << model.indices_.size() << "\n";
 
     mesh_ = std::make_unique<Mesh>(renderer_->createMesh(model.vertices_, model.indices_));
+    renderer_->createParticleSystem(generateParticles());
 }
 
 
 void Application::mainLoop()
 {
+    // initializing lastFrameTime as this will be the starting point of the delta time.
+    lastFrameTime_ = std::chrono::high_resolution_clock::now();
+
     while (!glfwWindowShouldClose(window_))
     {
         glfwPollEvents();
-
+        
+        auto current_time = std::chrono::high_resolution_clock::now();
+        float delta_time = std::chrono::duration<float>(current_time - lastFrameTime_).count(); 
+        lastFrameTime_ = current_time;
         //  drawing frame
         bool was_frame_drawn = renderer_->drawFrame(
             *swapChain_, 
@@ -109,10 +138,11 @@ void Application::mainLoop()
             *mesh_,
             computeUniformBufferObject(
                 swapChain_->getExtent(), 
-                std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - startTime_).count()
+                std::chrono::duration<float>(current_time - startTime_).count()
             ),
             depthImage_->getImageView(),
-            msaaColorImage_->getImageView()
+            msaaColorImage_->getImageView(),
+            delta_time
         );
 
         if (!was_frame_drawn || framebufferResized_)
@@ -186,4 +216,27 @@ UniformBufferObject Application::computeUniformBufferObject(vk::Extent2D extent,
     );
 
     return model_view_projection;
+}
+
+
+std::vector<Particle> Application::generateParticles() const
+{
+    // Initialize particles
+    std::default_random_engine rndEngine(static_cast<unsigned>(time(nullptr)));
+    std::uniform_real_distribution rndDist(0.0f, 1.0f);
+
+    // Initial particle positions on a circle
+    std::vector<Particle> particles(PARTICLE_COUNT);
+    for (auto &particle : particles)
+    {
+        float r = 0.25f * sqrtf(rndDist(rndEngine));
+        float theta = rndDist(rndEngine) * 2.0f * glm::pi<float>();
+        float x = r * cosf(theta) * (static_cast<float>(HEIGHT) / static_cast<float>(WIDTH));
+        float y = r * sinf(theta);
+        particle.position_ = glm::vec2(x, y);
+        particle.velocity_ = normalize(glm::vec2(x, y)) * 0.25f;
+        particle.color_ = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+    }
+
+    return particles;
 }
