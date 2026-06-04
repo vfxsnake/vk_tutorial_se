@@ -55,7 +55,7 @@ src/
 | 07 | Depth buffering | Complete |
 | 08 | Loading models (OBJ) | Complete |
 | 09–10 | Mipmaps + MSAA | Complete |
-| 11 | Compute shaders (particle system) | In progress |
+| 11 | Compute shaders (particle system) | Complete |
 
 ## Build (Windows)
 
