@@ -52,12 +52,12 @@ void Renderer::createDescriptorPool()
 {
     vk::DescriptorPoolSize descriptor_pool_size{
         .type = vk::DescriptorType::eUniformBuffer,
-        .descriptorCount = MAX_FRAMES_IN_FLIGHT
+        .descriptorCount = MAX_NUMBER_OF_OBJECTS * MAX_FRAMES_IN_FLIGHT
     };
 
     vk::DescriptorPoolCreateInfo descriptor_pool_create_info{
         .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 
-        .maxSets = MAX_FRAMES_IN_FLIGHT,
+        .maxSets = MAX_NUMBER_OF_OBJECTS * MAX_FRAMES_IN_FLIGHT,
         .poolSizeCount = 1,
         .pPoolSizes = &descriptor_pool_size  
     };
@@ -135,60 +135,22 @@ void Renderer::initializePerImageResources(uint32_t image_count)
 
 void Renderer::initializeFrameData()  // initialize frame data (syncronization objects)
 {
-    // 
     for (RenderFrameSlot& render_frame_slot : renderFrameSlots_) // allready have the total slots but un initialized.
     {
-        // refer to create command Buffer function from the Vulkan tutorial.
         vk::CommandBufferAllocateInfo command_buffer_allocate_info{
             .commandPool = *commandPool_,
             .level = vk::CommandBufferLevel::ePrimary,
             .commandBufferCount = 1
         };
-        std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(command_buffer_allocate_info);
-        render_frame_slot.commandBuffer_ = std::move(buffers[0]); // pointing to the first commandBuffer from the command count.
         
-        // refer to CreteSyncObjects() in the vulkan tutorial.
+        std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(command_buffer_allocate_info);
+        render_frame_slot.commandBuffer_ = std::move(buffers[0]); 
+        
         render_frame_slot.imageAvailableSemaphore_ = vk::raii::Semaphore(context_.getLogicalDevice(), vk::SemaphoreCreateInfo());
+        
         render_frame_slot.inFlightFence_ = vk::raii::Fence(
             context_.getLogicalDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled}
         );
-
-        auto [uniform_buffer, uniform_buffer_memory] = createBuffer(
-            sizeof(UniformBufferObject), 
-            vk::BufferUsageFlagBits::eUniformBuffer,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-
-        // initializing frame slot uniform buffer
-        render_frame_slot.uniformBuffer_ = std::move(uniform_buffer);
-        render_frame_slot.uniformBufferMemory_ = std::move(uniform_buffer_memory);
-        render_frame_slot.uniformBufferMappedMemory_ = render_frame_slot.uniformBufferMemory_.mapMemory(0, sizeof(UniformBufferObject)) ;
-
-        // allocating descriptor set
-        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{
-            .descriptorPool = descriptorPool_,
-            .descriptorSetCount = 1,
-            .pSetLayouts = &*(frameDescriptorLayout_.getLayout()),
-        };
-
-        std::vector<vk::raii::DescriptorSet> description_sets = context_.getLogicalDevice().allocateDescriptorSets(descriptor_set_allocate_info);
-        render_frame_slot.descriptorSet_ = std::move(description_sets.front());
-
-        vk::DescriptorBufferInfo descriptor_buffer_info{
-            .buffer = *render_frame_slot.uniformBuffer_,
-            .offset = 0,
-            .range = sizeof(UniformBufferObject)
-        };
-
-        vk::WriteDescriptorSet write_descriptor_set{
-            .dstSet = *render_frame_slot.descriptorSet_,
-            .dstBinding = 0,
-            .descriptorCount = 1,
-            .descriptorType = vk::DescriptorType::eUniformBuffer,
-            .pBufferInfo = &descriptor_buffer_info
-        };
-
-        context_.getLogicalDevice().updateDescriptorSets({write_descriptor_set}, {});
     }
 }
 
@@ -495,6 +457,60 @@ Mesh Renderer::createMesh(const std::vector<Vertex>& vertices, const std::vector
         static_cast<uint32_t>(indices.size()),
         vk::IndexType::eUint32
     );
+}
+
+
+uint32_t Renderer::addMesh(Mesh&& mesh)
+{
+    meshes_.push_back(std::move(mesh));
+    return static_cast<uint32_t>(meshes_.size() -1);
+}
+
+
+void Renderer::createObjectRenderData(uint32_t mesh_index)
+{
+    ObjectRenderData render_data;
+
+    for (uint32_t i=0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        auto [uniform_buffer, uniform_buffer_memory] = createBuffer(
+            sizeof(UniformBufferObject), 
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+        void* mapped = uniform_buffer_memory.mapMemory(0, sizeof(UniformBufferObject));
+
+        // allocating descriptor set
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{
+            .descriptorPool = descriptorPool_,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &*(frameDescriptorLayout_.getLayout()),
+        };
+        std::vector<vk::raii::DescriptorSet> descriptor_sets = context_.getLogicalDevice().allocateDescriptorSets(descriptor_set_allocate_info);
+    
+        render_data.uniformBuffers_.push_back(std::move(uniform_buffer));
+        render_data.uniformBufferMemories_.push_back(std::move(uniform_buffer_memory));
+        render_data.uniformBufferMemoriesMapped_.push_back(mapped);
+        render_data.descriptorSets_.push_back(std::move(descriptor_sets.front()));
+
+        vk::DescriptorBufferInfo descriptor_buffer_info{
+            .buffer = *render_data.uniformBuffers_.back(), // back() uses the lates pushed element in the vector
+            .offset = 0,
+            .range = sizeof(UniformBufferObject)
+        };
+
+        vk::WriteDescriptorSet write_descriptor_set{
+            .dstSet = *render_data.descriptorSets_.back(),
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .pBufferInfo = &descriptor_buffer_info
+        };
+
+        context_.getLogicalDevice().updateDescriptorSets({write_descriptor_set}, {});
+    }
+    objectRenderDataEntries_.push_back(std::move(render_data));
+    objectMeshIndices_.push_back(mesh_index);
 }
 
 

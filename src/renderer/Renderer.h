@@ -3,17 +3,17 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <array>
 #include <vector>
+#include <span>
 
 #include "RenderFrameSlot.h"
 #include "buffers/Vertex.h"
 #include "buffers/Mesh.h"
-#include "buffers/UniformBufferObject.h"
 #include "image_resources/Texture.h"
 #include "image_resources/DepthImage.h"
 #include "image_resources/MsaaColorImage.h"
 #include "ComputeFrameSlot.h"
 #include "buffers/Particle.h"
-
+#include "ObjectRenderData.h"
 
 // Forward Declarations
 class VulkanContext;
@@ -31,6 +31,7 @@ class Renderer
 {
 public:
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+    static constexpr uint32_t MAX_NUMBER_OF_OBJECTS = 16;
 
     Renderer(
         VulkanContext& context,
@@ -48,17 +49,22 @@ public:
     bool drawFrame(
         SwapChain& swap_chain, 
         GraphicsPipeline& graphics_pipeline, 
-        const Mesh& mesh,
-        const UniformBufferObject& uniform_buffer_object,
+        std::span<const UniformBufferObject> uniform_buffer_objects,
         vk::ImageView depth_image_view,
         vk::ImageView msaa_color_image_view,
         float delta_time
     );
     
     Mesh createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+    
+    auto addMesh(Mesh&& mesh) -> uint32_t;
+
+    void createObjectRenderData(uint32_t mesh_index);
+    
     void initializePerImageResources(uint32_t image_count);
 
     Texture createTexture(const std::string& path);
+    
     void bindTextureToDescriptor(const Texture& texture);
 
     auto createDepthResources(vk::Extent2D extent_2d) -> DepthImage;
@@ -154,6 +160,9 @@ private:
     vk::raii::DescriptorSet textureDescriptorSet_ = nullptr;
 
     const FrameDescriptorLayout& frameDescriptorLayout_;
+    std::vector<Mesh> meshes_;
+    std::vector<ObjectRenderData> objectRenderDataEntries_;
+    std::vector<uint32_t> objectMeshIndices_;
     std::array<RenderFrameSlot, MAX_FRAMES_IN_FLIGHT> renderFrameSlots_;
     
     uint32_t currentFrame_ = 0;

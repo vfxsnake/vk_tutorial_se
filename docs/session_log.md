@@ -2005,3 +2005,83 @@ Begin Chapter 16 (Multiple Objects) — request the markdown for chapter 16, the
 - OBS_HOOK warning still present (harmless, third-party).
 - Break projects planned between Ch17 and Ch18: TinyRenderer (https://haqr.eu/tinyrenderer/) + Ray Tracing in One Weekend (https://raytracing.github.io/books/RayTracingInOneWeekend.html)
 - Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 71 — 2026-06-05
+
+**Start time:** 08:17 EDT
+**End time:** 09:09 EDT
+**Duration:** 52 minutes
+
+**Covered:**
+- Generated `docs/vulkan_chapter_16_multiple_objects.md` (single page fetched and synthesised)
+- Full architecture discussion for Chapter 16 — all structural decisions agreed:
+  - `scene::Transform` + `scene::Object` in `src/scene/` with `namespace scene`
+  - `renderer/ObjectRenderData.h` — per-object × per-frame GPU resources (moves UBO/descriptor out of `RenderFrameSlot`)
+  - `Renderer::meshes_` (`std::vector<Mesh>`) as simple mesh pool; `addMesh()` returns `uint32_t` index
+  - `scene::Object::mesh_index` indexes into `Renderer::meshes_` — enables many nodes → one mesh
+  - Descriptor pool resized to `MAX_OBJECTS × MAX_FRAMES_IN_FLIGHT` (`MAX_OBJECTS = 16`)
+  - `drawFrame()` takes `std::span<const UniformBufferObject>` — Application computes per-object UBOs
+  - `GraphicsPipeline::record()` takes `std::span<const vk::DescriptorSet>` and loops per-object
+  - Full `MeshPool` class deferred to "Building a Simple Engine"
+  - Full namespace refactor (`namespace core`, `namespace renderer`) deferred to "Building a Simple Engine"
+- Generated `docs/vulkan_implementation_plan_16_multiple_objects.md`
+
+**Left off:**
+Implementation plan complete. Ready to begin implementation (Step 1 of build order).
+
+**Next session starts at:**
+Step 1 — implement `src/scene/Transform.h`, then `src/scene/Object.h`, then `src/renderer/ObjectRenderData.h`. Compile-check each before moving to Step 4 (RenderFrameSlot refactor).
+
+---
+
+## Session 72 — 2026-06-08
+
+**Start time:** 08:19 EDT
+**End time:** 09:54 EDT
+**Duration:** 1 hour 35 minutes
+
+**Covered:**
+- Step 1: `src/scene/Transform.h` — `namespace scene`, `struct Transform`, inline `getModelMatrix()` (T×Rx×Ry×Rz×S). Discussed extrinsic XYZ rotation convention and TRS application order.
+- Step 2: `src/scene/Object.h` — `namespace scene`, `struct Object` with `transform`, `mesh_index`, `texture_index`. Discussed C++ having no universal `Object` base type.
+- Step 3: `src/renderer/ObjectRenderData.h` — move-only struct, four `std::vector` members, inline `updateUniformBuffer()`.
+- Step 4: `src/renderer/RenderFrameSlot.h` — stripped UBO/descriptor/updateUniformBuffer; only sync + command buffer remain.
+- Read `Renderer.h` and `Renderer.cpp` in full to prepare Step 5.
+
+**Left off:**
+Step 5 not yet started — `Renderer.h` changes identified and briefed, user stopping for the session.
+
+**Next session starts at:**
+Update `Renderer.h`: add `#include <span>` + `#include "ObjectRenderData.h"`; add `MAX_OBJECTS = 16`; replace `drawFrame()` signature (remove `const Mesh&` + `const UniformBufferObject&`, add `std::span<const UniformBufferObject> ubos`); add `addMesh(Mesh&&) -> uint32_t` and `createObjectRenderData(uint32_t)` public methods; add `meshes_`, `objectRenderData_`, `objectMeshIndices_` private members. Then move to `Renderer.cpp`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 73 — 2026-06-09
+
+**Start time:** 08:06 EDT
+**End time:** 10:23 EDT
+**Duration:** 2 hours 17 minutes
+
+**Covered:**
+- Fixed session log ordering — Session 71 was logged after Session 72; reordered to 71 → 72 → 73
+- `Renderer.h` Step 5 complete: added `<span>`, `ObjectRenderData.h` include; `MAX_NUMBER_OF_OBJECTS = 16`; updated `drawFrame()` signature (removed `const Mesh&` + `const UniformBufferObject&`, added `std::span<const UniformBufferObject>`); added `addMesh()` and `createObjectRenderData()` public methods; added `meshes_`, `objectRenderDataEntries_`, `objectMeshIndices_` members
+- Naming discussions: `ObjectRenderData` vs `RenderDataObject` (noun-last convention + `Object` collision); `objectRenderDataEntries_` chosen over `objectRenderData_` (doesn't pluralise cleanly), `objectRenderDatas_` (not a word), `List` suffix (linked-list connotation), `per` prefix (reads like a verb)
+- `std::span` explained — non-owning view, no copy, accepts any contiguous container, `const` on element type prevents modification
+- `Renderer.cpp` Step 5 partial: `createDescriptorPool()` updated to `MAX_NUMBER_OF_OBJECTS * MAX_FRAMES_IN_FLIGHT`; `initializeFrameData()` stripped to sync + command buffer only; `addMesh()` implemented (push + return index); `createObjectRenderData()` implemented in full (loop over frames, build buffer + mapped ptr + descriptor set, `back()` instead of `[i]` for safety, append `ObjectRenderData` + `mesh_index` after loop)
+- Documentation policy discussion — agreed to add single-line class-level doc comments as we touch each file going forward; deferred full discussion to open questions
+
+**Left off:**
+`drawFrame()` in `Renderer.cpp` not yet updated — signature, per-object UBO loop, and `graphics_pipeline.record()` call still use old single-mesh/single-UBO pattern.
+
+**Next session starts at:**
+Update `drawFrame()` in `Renderer.cpp`: (1) update `.cpp` signature to match header; (2) replace single `updateUniformBuffer` call with per-object loop; (3) build `per_object_descriptor_sets` vector before `record()` call; (4) update `graphics_pipeline.record()` — pass descriptor sets span and `meshes_[objectMeshIndices_[0]]`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+- Documentation policy: agreed single-line class doc comments added as files are touched; full discussion deferred — revisit when we have a natural pause point.
