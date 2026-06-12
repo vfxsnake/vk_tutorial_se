@@ -43,6 +43,13 @@ struct UniformBuffer {
 };
 [vk::binding(0, 0)] ConstantBuffer<UniformBuffer> ubo;
 
+struct PushConstants
+{
+    uint startIndex;
+    uint count;
+};
+[[vk::push_constant]] PushConstants pushConstants;
+
 struct ParticleSSBO {
     Particle particles;
 };
@@ -53,18 +60,20 @@ struct ParticleSSBO {
 [numthreads(256,1,1)]
 void compMain(uint3 threadId : SV_DispatchThreadID)
 {
-    uint index = threadId.x;
+    if (threadId.x >= pushConstants.count) return;
+    uint globalIndex = pushConstants.startIndex + threadId.x;
 
-    particlesOut[index].particles.position = particlesIn[index].particles.position
-      + particlesIn[index].particles.velocity * ubo.deltaTime;
-    particlesOut[index].particles.velocity = particlesIn[index].particles.velocity;
+    particlesOut[globalIndex].particles.position = particlesIn[globalIndex].particles.position
+                                            + particlesIn[globalIndex].particles.velocity * ubo.deltaTime;
+    
+    particlesOut[globalIndex].particles.velocity = particlesIn[globalIndex].particles.velocity;
 
     // Bounce at screen edges
-    if (abs(particlesOut[index].particles.position.x) >= 1.0)
-        particlesOut[index].particles.velocity.x *= -1.0;
+    if (abs(particlesOut[globalIndex].particles.position.x) >= 1.0)
+        particlesOut[globalIndex].particles.velocity.x *= -1.0;
 
-    if (abs(particlesOut[index].particles.position.y) >= 1.0)
-        particlesOut[index].particles.velocity.y *= -1.0;
+    if (abs(particlesOut[globalIndex].particles.position.y) >= 1.0)
+        particlesOut[globalIndex].particles.velocity.y *= -1.0;
 
-    particlesOut[index].particles.color = particlesIn[index].particles.color;
+    particlesOut[globalIndex].particles.color = particlesIn[globalIndex].particles.color;
 }

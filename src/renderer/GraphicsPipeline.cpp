@@ -214,14 +214,14 @@ void GraphicsPipeline::transitionImageLayout(
 }
 
 void GraphicsPipeline::record(
-    vk::CommandBuffer command_buffer,
-    const vk::raii::DescriptorSet& descriptor_set,
+    vk::CommandBuffer command_buffer, 
+    std::span<const vk::DescriptorSet> descriptor_sets,
     const vk::raii::DescriptorSet& texture_descriptor_set,
-    vk::Extent2D extent,
-    vk::Image image,
+    vk::Extent2D extent, 
+    vk::Image image, 
     vk::ImageView image_view,
     vk::ImageView msaa_color_image_view,
-    const Mesh& mesh,
+    std::span<const Mesh*> meshes,
     vk::ImageView depth_image_view
 )
 {
@@ -278,19 +278,6 @@ void GraphicsPipeline::record(
 
     command_buffer.beginRendering(rendering_info);
     command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline_);
-    
-    std::array<vk::DescriptorSet, 2> descriptor_sets{
-        *descriptor_set,
-        *texture_descriptor_set
-    };
-    command_buffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        *layout_,
-        0, 
-        descriptor_sets,
-        {}
-    );
-
     command_buffer.setViewport(
         0, 
         vk::Viewport(
@@ -302,9 +289,25 @@ void GraphicsPipeline::record(
             1.0f // max depth
         )
     );
-    command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
     
-    mesh.bind(command_buffer);
-    command_buffer.drawIndexed(mesh.getIndexCount(), 1, 0, 0, 0);
+    command_buffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), extent));
+
+    for (uint32_t i = 0; i < meshes.size(); i++)
+    {
+        std::array<vk::DescriptorSet, 2> descriptor_set_and_texture{
+            descriptor_sets[i],
+            *texture_descriptor_set
+        };
+        command_buffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            *layout_,
+            0, 
+            descriptor_set_and_texture,
+            {}
+        );
+
+        meshes[i]->bind(command_buffer);
+        command_buffer.drawIndexed(meshes[i]->getIndexCount(), 1, 0, 0, 0);
+    }   
     command_buffer.endRendering();
 }

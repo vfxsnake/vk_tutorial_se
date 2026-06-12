@@ -156,10 +156,9 @@ void Renderer::initializeFrameData()  // initialize frame data (syncronization o
 
 
 bool Renderer::drawFrame(
-    SwapChain& swap_chain,
-    GraphicsPipeline& graphics_pipeline,
-    const Mesh& mesh,
-    const UniformBufferObject& uniform_buffer_object,
+    SwapChain& swap_chain, 
+    GraphicsPipeline& graphics_pipeline, 
+    std::span<const UniformBufferObject> uniform_buffer_objects,
     vk::ImageView depth_image_view,
     vk::ImageView msaa_color_image_view,
     float delta_time
@@ -236,8 +235,11 @@ bool Renderer::drawFrame(
     // reseting cpu fence to wait for the gpu
     context_.getLogicalDevice().resetFences(*(renderFrameSlots_[currentFrame_].inFlightFence_));
 
-    // updating uniform buffer
-    renderFrameSlots_[currentFrame_].updateUniformBuffer(uniform_buffer_object);
+    // updating uniform buffers
+    for (uint32_t i=0; i < objectRenderDataEntries_.size(); i++)
+    {
+        objectRenderDataEntries_[i].updateUniformBuffer(currentFrame_, uniform_buffer_objects[i]);
+    }
     
     // reseting the command buffer
     renderFrameSlots_[currentFrame_].commandBuffer_.reset();
@@ -245,16 +247,26 @@ bool Renderer::drawFrame(
     // starting the buffer .begin
     vk::CommandBufferBeginInfo command_buffer_begin_info{};
     renderFrameSlots_[currentFrame_].commandBuffer_.begin(command_buffer_begin_info);
+    
+    std::vector<vk::DescriptorSet> descriptor_sets;
+    std::vector<const Mesh*> mesh_pointers;
+
+    for (uint32_t index = 0; index < objectRenderDataEntries_.size(); index ++)
+    {
+        descriptor_sets.push_back(*(objectRenderDataEntries_[index].descriptorSets_[currentFrame_]));
+        mesh_pointers.push_back(&meshes_[objectMeshIndices_[index]]); 
+    }
+    
     // recording the command buffer using the graphics_pipeline record command
     graphics_pipeline.record(
         renderFrameSlots_[currentFrame_].commandBuffer_,
-        renderFrameSlots_[currentFrame_].descriptorSet_,
+        descriptor_sets,
         textureDescriptorSet_,
         swap_chain.getExtent(),
         swap_chain.getImage(image_index),
         swap_chain.getImageView(image_index),
         msaa_color_image_view,
-        mesh,
+        mesh_pointers,
         depth_image_view
     );
 

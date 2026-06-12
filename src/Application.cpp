@@ -114,7 +114,35 @@ void Application::initVulkan()
     std::cout << "vertex size: " << model.vertices_.size() << "\n";
     std::cout << "indices size: " << model.indices_.size() << "\n";
 
-    mesh_ = std::make_unique<Mesh>(renderer_->createMesh(model.vertices_, model.indices_));
+    uint32_t mesh_index = renderer_->addMesh(renderer_->createMesh(model.vertices_, model.indices_));
+    
+    // instancing 3 times the viking room model 
+    scene::Object instance_1;
+    instance_1.mesh_index = mesh_index;
+    instance_1.transform.position = {0.5, 0.5, 0.5};
+    instance_1.transform.scale = {0.5, 0.5, 0.5};
+    instance_1.transform.rotation.x = glm::radians(-30.0f);
+    
+    scene::Object instance_2; 
+    instance_2.mesh_index = mesh_index;
+    instance_2.transform.rotation.x = glm::radians(30.0f);
+    
+    scene::Object instance_3;
+    instance_3.mesh_index = mesh_index;
+    instance_3.transform.position = {-0.5, -0.5, -0.5};
+    instance_3.transform.rotation.x = glm::radians(90.0f);
+    instance_3.transform.scale = {.25, .25, .25};
+
+    objects_.push_back(instance_1);
+    objects_.push_back(instance_2);
+    objects_.push_back(instance_3);
+
+    // creating objects render data 
+    for (const auto& obj : objects_)
+    {
+        renderer_->createObjectRenderData(obj.mesh_index);
+    }
+
     renderer_->createParticleSystem(generateParticles());
 }
 
@@ -131,15 +159,23 @@ void Application::mainLoop()
         auto current_time = std::chrono::high_resolution_clock::now();
         float delta_time = std::chrono::duration<float>(current_time - lastFrameTime_).count(); 
         lastFrameTime_ = current_time;
+        float elapsed_time = std::chrono::duration<float>(current_time - startTime_).count(); 
+
+        std::vector<UniformBufferObject> uniform_buffer_objects;
+        uniform_buffer_objects.reserve(objects_.size());
+
+        for (const auto& obj : objects_)
+        {
+            uniform_buffer_objects.push_back(
+                computeUniformBufferObject(swapChain_->getExtent(),elapsed_time, obj)
+            );
+        }
+
         //  drawing frame
         bool was_frame_drawn = renderer_->drawFrame(
             *swapChain_, 
-            *graphicsPipeline_, 
-            *mesh_,
-            computeUniformBufferObject(
-                swapChain_->getExtent(), 
-                std::chrono::duration<float>(current_time - startTime_).count()
-            ),
+            *graphicsPipeline_,
+            uniform_buffer_objects,
             depthImage_->getImageView(),
             msaaColorImage_->getImageView(),
             delta_time
@@ -193,13 +229,19 @@ void Application::framebufferResizeCallback(GLFWwindow* window, int width, int h
 }
 
 
-UniformBufferObject Application::computeUniformBufferObject(vk::Extent2D extent, float time_seconds) const
+UniformBufferObject Application::computeUniformBufferObject(
+    vk::Extent2D extent, 
+    float time_seconds,
+    const scene::Object& scene_object
+) const
 {
     UniformBufferObject model_view_projection;
+    model_view_projection.modelMatrix_ = scene_object.transform.getModelMatrix();
+    
     model_view_projection.modelMatrix_ = glm::rotate(
-        glm::mat4(1.0f), // transformation matrix
+        model_view_projection.modelMatrix_, // transformation matrix
         time_seconds * glm::radians(90.0f), // angle in radiants
-        glm::vec3(0.0f, 0.0f, 1.0f) // rotation angle
+        glm::vec3(0.0f, 0.0f, 1.0f) // rotation vector axis
     );
 
     model_view_projection.viewMatrix_ = glm::lookAt(

@@ -2085,3 +2085,85 @@ Update `drawFrame()` in `Renderer.cpp`: (1) update `.cpp` signature to match hea
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
 - Documentation policy: agreed single-line class doc comments added as files are touched; full discussion deferred — revisit when we have a natural pause point.
+
+---
+
+## Session 74 — 2026-06-10
+
+**Start time:** 08:06 EDT
+
+**End time:** 09:40 EDT
+**Duration:** 1 hour 34 minutes
+
+**Covered:**
+- `Renderer.cpp::drawFrame()` signature updated to match header (`std::span<const UniformBufferObject>`)
+- Per-object UBO update loop replacing the single `updateUniformBuffer` call
+- Combined loop building `descriptor_sets` + `mesh_pointers` vectors before `record()` call
+- `graphics_pipeline.record()` call site updated — passes both vectors
+- `GraphicsPipeline.h` — `record()` declaration updated: `std::span<const vk::DescriptorSet>` + `std::span<const Mesh*>`, added `#include <span>`
+- `GraphicsPipeline.cpp` — `record()` implementation updated: per-object loop for `bindDescriptorSets` + `bind` + `drawIndexed`; viewport/scissor/beginRendering/endRendering outside loop
+- Discussed CPU-loop vs GPU instancing; `objectRenderDataEntries_` vs `meshes_` size distinction; `objectMeshIndices_` as the bridge
+
+**Left off:**
+`Renderer` and `GraphicsPipeline` fully updated. `Application` not yet touched — still calls old `drawFrame` signature and owns `mesh_` directly.
+
+**Next session starts at:**
+Update `Application.h`: remove `mesh_` member, add `scene::Object` (include `scene/Object.h`). Then update `initVulkan()` and `mainLoop()` in `Application.cpp`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 75 — 2026-06-11
+
+**Start time:** 08:15 EDT
+**End time:** 10:12 EDT
+**Duration:** 1 hour 57 minutes
+
+**Covered:**
+- `Application.h` updated: removed `Mesh` forward declaration, added `scene::Object` include, added `std::vector<scene::Object> objects_`, updated `computeUniformBufferObject` signature to accept `const scene::Object&` + `time_seconds`
+- `Application.cpp::initVulkan()` updated: `addMesh()` + 3 hardcoded `scene::Object` instances with distinct transforms pushed to `objects_`, `createObjectRenderData()` loop, `createParticleSystem()` retained
+- `Application.cpp::mainLoop()` updated: per-object UBO loop with `elapsed_time`, updated `drawFrame()` call (no `mesh_` param, passes `uniform_buffer_objects` span)
+- Build clean on WSL2 and Windows; three spinning viking rooms visible, validation layers silent
+- Chapter 16 (Multiple Objects) fully complete — all T1–T7 verification tests pass
+- Chapter 17 (Multithreading) — fetched tutorial page, produced `docs/vulkan_chapter_17_multithreading.md`
+- Full architecture discussion for Ch17 — all 7 decisions locked (see implementation plan)
+- Produced `docs/vulkan_implementation_plan_17_multithreading.md`
+
+**Left off:**
+Chapter 17 architecture and implementation plan complete. No code written yet.
+
+**Next session starts at:**
+Step 1 — add `PushConstants` struct to `ComputePipeline.h` and add push constant range to `createPipelineLayout()` in `ComputePipeline.cpp`.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+- Injection chain (`Application` → `Renderer` → `ComputeThreadPool` → `ComputePipeline`) flagged for `RenderContext` refactor in "Building a Simple Engine".
+
+---
+
+## Session 76 — 2026-06-12
+
+**Start time:** 08:08 EDT
+**End time:** 10:51 EDT
+**Duration:** 2 hours 43 minutes
+
+**Covered:**
+- Step 1 complete: `ComputePipeline.h` — `PushConstants` struct added at file scope (above class), `getPipeline()` and `getPipelineLayout()` accessors declared
+- Step 1 complete: `ComputePipeline.cpp` — `createPipelineLayout()` updated with `vk::PushConstantRange` (designated initialisers), two accessor implementations added
+- Step 2 complete: `shaders/particles.slang` — `PushConstants` struct + `[[vk::push_constant]] PushConstants pushConstants;` added; `compMain` updated with bounds check + `globalIndex`; compiles clean
+- Step 3 complete: `ComputeThreadPool.h` — full header written; all members, threading primitives, per-thread GPU resource vectors declared
+- Step 4 partial: `ComputeThreadPool.cpp` — constructor and destructor implemented; `createCommandPoolsAndBuffers()` not yet started
+
+**Left off:**
+Constructor and destructor of `ComputeThreadPool` done. `createCommandPoolsAndBuffers()` is next.
+
+**Next session starts at:**
+Implement `createCommandPoolsAndBuffers()` in `ComputeThreadPool.cpp` — per-thread command pool creation with `eResetCommandBuffer` + compute queue family, then allocate one primary command buffer per pool. Reference `Renderer.cpp` for the exact structs.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.

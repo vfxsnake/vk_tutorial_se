@@ -17,9 +17,17 @@ ComputePipeline::ComputePipeline(
 
 void ComputePipeline::createPipelineLayout()
 {
+    vk::PushConstantRange push_constant_range{
+        .stageFlags = vk::ShaderStageFlagBits::eCompute,
+        .offset = 0,
+        .size = sizeof(PushConstants)
+    };
+
     vk::PipelineLayoutCreateInfo pipeline_layout_info{
         .setLayoutCount = 1,
-        .pSetLayouts = &*(particleDescriptorLayout_.getLayout())
+        .pSetLayouts = &*(particleDescriptorLayout_.getLayout()),
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &push_constant_range
     };
     
     pipelineLayout_ = vk::raii::PipelineLayout(
@@ -77,4 +85,16 @@ void ComputePipeline::record(
     );
     command_buffer.dispatch(particle_count / 256, 1, 1);
     command_buffer.end();
+}
+
+
+const vk::raii::Pipeline& ComputePipeline::getPipeline() const
+{
+    return pipeline_;
+}
+
+
+const vk::raii::PipelineLayout& ComputePipeline::getPipelineLayout() const
+{
+    return pipelineLayout_;
 }

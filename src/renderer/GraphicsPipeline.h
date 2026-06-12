@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 #include <string>
+#include <span>
 
 // forward declaration
 class VulkanContext;
@@ -28,13 +29,13 @@ public:
 
     void record(
         vk::CommandBuffer command_buffer, 
-        const vk::raii::DescriptorSet& descriptor_set,
+        std::span<const vk::DescriptorSet> descriptor_sets,
         const vk::raii::DescriptorSet& texture_descriptor_set,
         vk::Extent2D extent, 
         vk::Image image, 
         vk::ImageView image_view,
         vk::ImageView msaa_color_image_view,
-        const Mesh& mesh,
+        std::span<const Mesh*> meshes,
         vk::ImageView depth_image_view
     );
 

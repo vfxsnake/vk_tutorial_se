@@ -6,10 +6,11 @@
 #include <memory>
 #include <cstdint>
 #include <chrono>
+#include <vector>
 
 #include "renderer/buffers/UniformBufferObject.h"
 #include "renderer/buffers/Particle.h"
-
+#include "scene/Object.h"
 
 // forward declarations
 class VulkanContext;
@@ -17,7 +18,6 @@ class SwapChain;
 class FrameDescriptorLayout;
 class GraphicsPipeline;
 class Renderer;
-class Mesh;
 class TextureDescriptorLayout;
 class Texture;
 class DepthImage;
@@ -41,7 +41,11 @@ private:
     void mainLoop();
     void onResize();
 
-    auto computeUniformBufferObject(vk::Extent2D extent, float time_seconds) const -> UniformBufferObject;
+    auto computeUniformBufferObject(
+        vk::Extent2D extent, 
+        float time_seconds,
+        const scene::Object& scene_object
+    ) const -> UniformBufferObject;
 
     auto generateParticles() const -> std::vector<Particle>;
 
@@ -72,5 +76,5 @@ private:
     std::unique_ptr<MsaaColorImage> msaaColorImage_;
     std::unique_ptr<DepthImage> depthImage_;
     std::unique_ptr<Texture> texture_;
-    std::unique_ptr<Mesh> mesh_;
+    std::vector<scene::Object> objects_;  
 };

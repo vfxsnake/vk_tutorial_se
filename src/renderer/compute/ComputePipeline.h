@@ -8,6 +8,13 @@ class VulkanContext;
 class ParticleDescriptorLayout;
 
 
+struct PushConstants
+{
+    uint32_t startIndex;
+    uint32_t count;
+};
+
+
 class ComputePipeline
 {
 public:
@@ -19,6 +26,9 @@ public:
     // deleting copy operations.
     ComputePipeline(const ComputePipeline&) = delete;
     ComputePipeline& operator =(const ComputePipeline&) = delete;
+
+    auto getPipeline() const -> const vk::raii::Pipeline&;
+    auto getPipelineLayout() const -> const vk::raii::PipelineLayout&;
 
     void record(
         vk::CommandBuffer command_buffer,
