@@ -2167,3 +2167,28 @@ Implement `createCommandPoolsAndBuffers()` in `ComputeThreadPool.cpp` — per-th
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 77 — 2026-06-15
+
+**Start time:** 08:32 EDT
+**End time:** 10:28 EDT
+**Duration:** 1 hour 56 minutes
+
+**Covered:**
+- `createCommandPoolsAndBuffers()` implemented and reviewed: per-thread command pool (`eResetCommandBuffer`), one primary command buffer allocated per pool, pool stored before going out of scope
+- `createFences()` implemented: per-thread fence with `eSignaled` flag, explicit create-info named variable
+- `workerThreadFunction()` skeleton written: `while(true)`, `atomic::wait(false)` for workReady, reset, `shouldExit_` check, fence wait/reset, command buffer reset+begin (`eOneTimeSubmit`), `bindPipeline`, `bindDescriptorSets`
+- Discussed `while(true)` vs `while(!shouldExit_)` — confirmed `while(true)` + break after wait is correct; `while(!shouldExit_)` would do one spurious dispatch after exit signal
+- Discussed `yield()` vs `atomic::wait` — confirmed `atomic::wait(false)` + `notify_one()` is the C++20 idiomatic approach (thread actually sleeps, no CPU burn)
+
+**Left off:**
+`workerThreadFunction()` body is partially complete — steps 4 and 5 done (bindPipeline, bindDescriptorSets). Steps 6–9 not yet written.
+
+**Next session starts at:**
+Continue `workerThreadFunction()` body: step 6 — compute particle slice (`particles_per_thread`, `start_index`, `count` with remainder for last thread); step 7 — `pushConstants<PushConstants>`; step 8 — `dispatch((count + 255) / 256, 1, 1)`; step 9 — `end()`, then signal done (`workDone_[i] = true` under mutex, `workDoneConditionVariable_.notify_one()`).
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.

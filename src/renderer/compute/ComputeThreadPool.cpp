@@ -53,3 +53,86 @@ ComputeThreadPool::~ComputeThreadPool()
         }
     }
 }
+
+
+void ComputeThreadPool::createCommandPoolsAndBuffers()
+{
+    for (uint32_t i = 0; i < threadCount_; i++)
+    {
+        vk::CommandPoolCreateInfo command_pool_create_info{
+            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+            .queueFamilyIndex = context_.getQueueFamilyIndex()
+        };
+
+        // direct construct of command pool to avoid vk::raii::commandPool twice.
+        vk::raii::CommandPool command_pool(
+            context_.getLogicalDevice(), 
+            command_pool_create_info
+        );
+        
+        vk::CommandBufferAllocateInfo command_buffer_allocate_info{
+            .commandPool = *command_pool,
+            .level = vk::CommandBufferLevel::ePrimary,
+            .commandBufferCount = 1
+        };
+        
+        std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(
+            command_buffer_allocate_info
+        );
+        
+        commandPools_[i] = std::move(command_pool);
+        commandBuffers_[i] = std::move(buffers[0]);
+    }
+}
+
+
+void ComputeThreadPool::createFences()
+{
+    for (uint32_t i = 0; i < threadCount_; i++)
+    {
+        vk::FenceCreateInfo fence_create_info{
+            .flags = vk::FenceCreateFlagBits::eSignaled
+        };
+        
+        fences_[i] = vk::raii::Fence(
+            context_.getLogicalDevice(),
+            fence_create_info
+        );
+    }
+}
+
+
+void ComputeThreadPool::workerThreadFunction(uint32_t thread_index)
+{
+    while (true)
+    {
+        workReady_[thread_index].wait(false); // waits until it becomes false or wait for false.
+        workReady_[thread_index].store(false); // resets the value for next dispatch.
+        if (shouldExit_)
+        {
+            break;
+        }
+
+        context_.getLogicalDevice().waitForFences(*fences_[thread_index], vk::True, UINT64_MAX);
+        context_.getLogicalDevice().resetFences(*fences_[thread_index]);
+
+        commandBuffers_[thread_index].reset();
+        vk::CommandBufferBeginInfo command_buffer_begin_info{
+            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        };
+        commandBuffers_[thread_index].begin(command_buffer_begin_info);
+
+        commandBuffers_[thread_index].bindPipeline(
+            vk::PipelineBindPoint::eCompute, 
+            *computePipeline_.getPipeline()
+        );
+
+        commandBuffers_[thread_index].bindDescriptorSets(
+            vk::PipelineBindPoint::eCompute,
+            *computePipeline_.getPipelineLayout(),
+            0,
+            currentDescriptorSets_[thread_index],
+            {}
+        );
+    }
+}

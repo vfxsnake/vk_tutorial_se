@@ -40,7 +40,7 @@ Renderer::Renderer(
 void Renderer::createCommandPool()
 {
     vk::CommandPoolCreateInfo command_pool_create_info{
-        .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,  // allows suing commandbuffer.reset() instead of reseting the entire pool.
+        .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,  // allows the use commandbuffer.reset() instead of reseting the entire pool.
         .queueFamilyIndex = context_.getQueueFamilyIndex()
     };
 
@@ -1050,8 +1050,12 @@ void Renderer::generateMipmaps(
         std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(command_buffer_allocate_info);
         computeFrameSlots_[i].computeCommandBuffer_ = std::move(buffers[0]); // pointing to the first commandBuffer from the command count.
         
+        vk::FenceCreateInfo fence_create_info{
+            .flags = vk::FenceCreateFlagBits::eSignaled
+        };
         computeFrameSlots_[i].computeInflightFence_ = vk::raii::Fence(
-            context_.getLogicalDevice(), {.flags = vk::FenceCreateFlagBits::eSignaled}
+            context_.getLogicalDevice(),
+            fence_create_info
         );
 
         // refer to CreteSyncObjects() in the vulkan tutorial.
