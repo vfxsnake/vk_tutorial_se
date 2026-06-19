@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <random>
+#include <thread>
 
 #include "core/VulkanContext.h"
 #include "core/SwapChain.h"
@@ -18,6 +19,7 @@
 #include "renderer/image_resources/MsaaColorImage.h"
 #include "renderer/compute/ParticleDescriptorLayout.h"
 #include "renderer/compute/ComputePipeline.h"
+#include "renderer/compute/ComputeThreadPool.h"
 #include "renderer/compute/ParticleGraphicsPipeline.h"
 #include "utils/ModelLoader.h"
 
@@ -75,7 +77,12 @@ void Application::initVulkan()
     );
     
     particleDescriptorLayout_ = std::make_unique<ParticleDescriptorLayout>(*context_);
+    
     computePipeline_ = std::make_unique<ComputePipeline>(*context_, *particleDescriptorLayout_);
+
+    uint32_t thread_count = std::max(1u, std::thread::hardware_concurrency() -1);
+    computeThreadPool_ = std::make_unique<ComputeThreadPool>(*context_, *computePipeline_, *particleDescriptorLayout_, thread_count);
+
     particleGraphicsPipeline_ = std::make_unique<ParticleGraphicsPipeline>(
         *context_,
         *particleDescriptorLayout_,
@@ -91,7 +98,8 @@ void Application::initVulkan()
         *frameDescriptorLayout_,
         *computePipeline_,
         *particleGraphicsPipeline_,
-        *particleDescriptorLayout_
+        *particleDescriptorLayout_,
+        *computeThreadPool_
     );
 
     renderer_->initializePerImageResources(swapChain_->getImageCount());

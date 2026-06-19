@@ -20,7 +20,7 @@ struct PSInput
 [shader("vertex")]
 VSOutput vertMain(VSInput input) {
     VSOutput output;
-    output.pointSize = 14.0;
+    output.pointSize = 5.0;
     output.pos = float4(input.inPosition, 0.0, 1.0);
     output.fragColor = input.inColor.rgb;
     return output;

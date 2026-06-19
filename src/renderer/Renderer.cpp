@@ -8,6 +8,7 @@
 #include "compute/ComputeUniformBufferObject.h"
 #include "compute/ParticleDescriptorLayout.h"
 #include "compute/ParticleGraphicsPipeline.h"
+#include "compute/ComputeThreadPool.h"
 
 #include <stdexcept>
 #include <cmath>
@@ -22,13 +23,15 @@ Renderer::Renderer(
     const FrameDescriptorLayout& frame_descriptor_layout,
     const ComputePipeline& compute_pipeline,
     const ParticleGraphicsPipeline& particle_graphics_pipeline,
-    const ParticleDescriptorLayout& particle_descriptor_layout
+    const ParticleDescriptorLayout& particle_descriptor_layout,
+    ComputeThreadPool& compute_thread_pool
 ) : context_(context), 
     frameDescriptorLayout_(frame_descriptor_layout),
     textureDescriptorLayout_(texture_descriptor_layout),
     computePipeline_(compute_pipeline),
     particleGraphicsPipeline_(particle_graphics_pipeline),
-    particleDescriptorLayout_(particle_descriptor_layout)
+    particleDescriptorLayout_(particle_descriptor_layout),
+    computeThreadPool_(compute_thread_pool)
 {
     createCommandPool();
     createDescriptorPool();
@@ -182,24 +185,26 @@ bool Renderer::drawFrame(
     );
 
     context_.getLogicalDevice().resetFences(*(computeFrameSlots_[currentFrame_].computeInflightFence_));
-    computeFrameSlots_[currentFrame_].computeCommandBuffer_.reset();
-    computePipeline_.record(
-        *(computeFrameSlots_[currentFrame_].computeCommandBuffer_),
-        computeFrameSlots_[currentFrame_].descriptorSet_,
-        particleCount_
+    
+    std::vector<const vk::raii::DescriptorSet*> descriptor_set_pointers(
+      computeThreadPool_.getThreadCount(),
+      &computeFrameSlots_[currentFrame_].descriptorSet_
     );
 
-    const vk::SubmitInfo submit_compute_info{
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &*(computeFrameSlots_[currentFrame_].computeCommandBuffer_),
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*(computeFrameSlots_[currentFrame_].computeFinishedSemaphore_)
-    };
-
-    context_.getQueue().submit(submit_compute_info, *(computeFrameSlots_[currentFrame_].computeInflightFence_));
+    auto compute_command_buffers = computeThreadPool_.dispatch(
+        descriptor_set_pointers,
+        particleCount_,
+        currentFrame_
+    );
+    vk::SubmitInfo compute_submit_info{};
+    compute_submit_info.setCommandBuffers(compute_command_buffers);
+    compute_submit_info.setSignalSemaphores(
+        *(computeFrameSlots_[currentFrame_].computeFinishedSemaphore_)
+    );
+    context_.getQueue().submit(
+        compute_submit_info,
+        *(computeFrameSlots_[currentFrame_].computeInflightFence_)
+    );
 
     // Graphics block 
     // CPU side fence: waiting for gpu task finishes

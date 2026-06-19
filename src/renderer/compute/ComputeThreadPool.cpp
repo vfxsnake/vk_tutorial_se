@@ -12,17 +12,10 @@ ComputeThreadPool::ComputeThreadPool(
     particleDescriptorLayout_(particle_descriptor_layout),
     threadCount_(thread_count)
 {
-    // using resize to populate all vector member variables.
-    commandPools_.resize(threadCount_);
-    commandBuffers_.resize(threadCount_);
-    fences_.resize(threadCount_);
-    workReady_.resize(threadCount_);
-    workDone_.resize(threadCount_);
     currentDescriptorSets_.resize(threadCount_);
     workerThreads_.resize(threadCount_);
     
     createCommandPoolsAndBuffers();
-    createFences();
     
     for (uint32_t i = 0; i < threadCount_; i++)
     {
@@ -43,6 +36,7 @@ ComputeThreadPool::~ComputeThreadPool()
     for (uint32_t i = 0; i < threadCount_; i++)
     {
         workReady_[i] = true;
+        workReady_[i].notify_one();
     }
 
     for (auto& current_thread: workerThreads_)
@@ -57,48 +51,41 @@ ComputeThreadPool::~ComputeThreadPool()
 
 void ComputeThreadPool::createCommandPoolsAndBuffers()
 {
-    for (uint32_t i = 0; i < threadCount_; i++)
+    for (uint32_t frame_in_flight = 0; frame_in_flight < MAX_FRAMES_IN_FLIGHT; frame_in_flight++ )
     {
-        vk::CommandPoolCreateInfo command_pool_create_info{
-            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-            .queueFamilyIndex = context_.getQueueFamilyIndex()
-        };
+        for (uint32_t i = 0; i < threadCount_; i++)
+        {
+            vk::CommandPoolCreateInfo command_pool_create_info{
+                .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                .queueFamilyIndex = context_.getQueueFamilyIndex()
+            };
 
-        // direct construct of command pool to avoid vk::raii::commandPool twice.
-        vk::raii::CommandPool command_pool(
-            context_.getLogicalDevice(), 
-            command_pool_create_info
-        );
-        
-        vk::CommandBufferAllocateInfo command_buffer_allocate_info{
-            .commandPool = *command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = 1
-        };
-        
-        std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(
-            command_buffer_allocate_info
-        );
-        
-        commandPools_[i] = std::move(command_pool);
-        commandBuffers_[i] = std::move(buffers[0]);
+            // direct construct of command pool to avoid vk::raii::commandPool twice.
+            vk::raii::CommandPool command_pool(
+                context_.getLogicalDevice(), 
+                command_pool_create_info
+            );
+            
+            vk::CommandBufferAllocateInfo command_buffer_allocate_info{
+                .commandPool = *command_pool,
+                .level = vk::CommandBufferLevel::ePrimary,
+                .commandBufferCount = 1
+            };
+            
+            std::vector<vk::raii::CommandBuffer> buffers = context_.getLogicalDevice().allocateCommandBuffers(
+                command_buffer_allocate_info
+            );
+            
+            commandPools_[frame_in_flight].push_back(std::move(command_pool));
+            commandBuffers_[frame_in_flight].push_back(std::move(buffers[0]));
+        }
     }
 }
 
 
-void ComputeThreadPool::createFences()
+uint32_t ComputeThreadPool::getThreadCount() const
 {
-    for (uint32_t i = 0; i < threadCount_; i++)
-    {
-        vk::FenceCreateInfo fence_create_info{
-            .flags = vk::FenceCreateFlagBits::eSignaled
-        };
-        
-        fences_[i] = vk::raii::Fence(
-            context_.getLogicalDevice(),
-            fence_create_info
-        );
-    }
+    return threadCount_;
 }
 
 
@@ -106,33 +93,111 @@ void ComputeThreadPool::workerThreadFunction(uint32_t thread_index)
 {
     while (true)
     {
-        workReady_[thread_index].wait(false); // waits until it becomes false or wait for false.
-        workReady_[thread_index].store(false); // resets the value for next dispatch.
+         while (!workReady_[thread_index].load())
+        {
+            workReady_[thread_index].wait(false);
+        }
+        workReady_[thread_index].store(false);
+        
         if (shouldExit_)
         {
             break;
         }
 
-        context_.getLogicalDevice().waitForFences(*fences_[thread_index], vk::True, UINT64_MAX);
-        context_.getLogicalDevice().resetFences(*fences_[thread_index]);
-
-        commandBuffers_[thread_index].reset();
+        commandBuffers_[currentFrameIndex_][thread_index].reset();
         vk::CommandBufferBeginInfo command_buffer_begin_info{
             .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
         };
-        commandBuffers_[thread_index].begin(command_buffer_begin_info);
+        commandBuffers_[currentFrameIndex_][thread_index].begin(command_buffer_begin_info);
 
-        commandBuffers_[thread_index].bindPipeline(
+        commandBuffers_[currentFrameIndex_][thread_index].bindPipeline(
             vk::PipelineBindPoint::eCompute, 
             *computePipeline_.getPipeline()
         );
 
-        commandBuffers_[thread_index].bindDescriptorSets(
+        commandBuffers_[currentFrameIndex_][thread_index].bindDescriptorSets(
             vk::PipelineBindPoint::eCompute,
             *computePipeline_.getPipelineLayout(),
             0,
             currentDescriptorSets_[thread_index],
             {}
         );
+
+        // Compute push constants for this thread slice
+        uint32_t particles_per_thread = currentParticleCount_ / threadCount_;
+        uint32_t start_index_value = thread_index * particles_per_thread;
+        uint32_t particle_count_to_process;
+        if (thread_index == threadCount_ -1)
+        {
+            particle_count_to_process = currentParticleCount_ - start_index_value;
+        }
+        else
+        {
+            particle_count_to_process = particles_per_thread;
+        }
+
+        PushConstants push_constants{start_index_value, particle_count_to_process};
+
+        commandBuffers_[currentFrameIndex_][thread_index].pushConstants<PushConstants>( // pushing constants type PushConstants struct
+            *computePipeline_.getPipelineLayout(),
+            vk::ShaderStageFlagBits::eCompute,
+            0,
+            push_constants // pasing the value to be taken as reference.
+        );
+
+        // dispatching
+        commandBuffers_[currentFrameIndex_][thread_index].dispatch((particle_count_to_process + 255) / 256, 1, 1);
+        commandBuffers_[currentFrameIndex_][thread_index].end();
+        
+        {
+            std::lock_guard<std::mutex> done_lock(workDoneMutex_);
+            workDone_[thread_index] = true;
+        }
+        workDoneConditionVariable_.notify_one();
     }
+}
+
+
+std::vector<vk::CommandBuffer> ComputeThreadPool::dispatch(
+    std::span<const vk::raii::DescriptorSet*> compute_descriptor_sets,
+    uint32_t particle_count,
+    uint32_t current_frame
+)
+{
+    currentParticleCount_ = particle_count;
+    currentFrameIndex_ = current_frame;
+    for (uint32_t i = 0; i < threadCount_; i++)
+    {
+        currentDescriptorSets_[i] = *compute_descriptor_sets[i];
+    }
+
+    for (uint32_t i = 0;  i < threadCount_; i++)
+    {
+        workDone_[i] = false;
+        workReady_[i] = true;
+        workReady_[i].notify_one();
+    }
+
+    std::unique_lock lock(workDoneMutex_);
+    
+    workDoneConditionVariable_.wait(
+        lock, 
+        [&]{
+            return std::ranges::all_of(
+                std::span(workDone_).first(threadCount_),
+                [](const std::atomic<bool>& done)
+                {
+                    return done.load();
+                }   
+            );
+        }
+    );
+
+    std::vector<vk::CommandBuffer> result;
+    for (uint32_t i = 0; i < threadCount_; i++)
+    {
+        result.push_back(*commandBuffers_[currentFrameIndex_][i]);
+    }
+
+    return result;
 }

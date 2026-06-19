@@ -24,8 +24,7 @@ class TextureDescriptorLayout;
 class ComputePipeline;
 class ParticleGraphicsPipeline;
 class ParticleDescriptorLayout;
-
-
+class ComputeThreadPool;
 
 class Renderer
 {
@@ -39,7 +38,8 @@ public:
         const FrameDescriptorLayout& frame_descriptor_layout,
         const ComputePipeline& compute_pipeline,
         const ParticleGraphicsPipeline& particle_graphics_pipeline,
-        const ParticleDescriptorLayout& particle_descriptor_layout
+        const ParticleDescriptorLayout& particle_descriptor_layout,
+        ComputeThreadPool& compute_thread_pool
     );
 
     // Non Copyable (removing copyable constructors)
@@ -171,8 +171,9 @@ private:
     const ComputePipeline& computePipeline_;
     const ParticleGraphicsPipeline& particleGraphicsPipeline_;
     const ParticleDescriptorLayout& particleDescriptorLayout_;
+    ComputeThreadPool& computeThreadPool_;
     vk::raii::DescriptorPool computeDescriptorPool_ = nullptr;
     std::vector<ComputeFrameSlot> computeFrameSlots_;
-    uint32_t particleCount_ = 0; 
+    uint32_t particleCount_ = 0;
 
 };

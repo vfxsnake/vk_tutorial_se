@@ -2192,3 +2192,115 @@ Continue `workerThreadFunction()` body: step 6 — compute particle slice (`part
 **Open questions / notes:**
 - OBS_HOOK warning still present (harmless, third-party).
 - Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 78 — 2026-06-16
+
+**Start time:** 08:04 EDT
+**End time:** 09:43 EDT
+**Duration:** 1 hour 39 minutes
+
+**Covered:**
+- Reviewed and corrected `ComputeThreadPool::workerThreadFunction()` push-constants call — fixed wrong 4-arg overload match (`sizeof(PushConstants)` landing in the `offset` slot, `&push_constants` not matching any `ArrayProxy` constructor) to the correct `pushConstants<PushConstants>(layout, eCompute, 0, push_constants)` form, confirmed against `vulkan_raii.hpp` template signature and `ArrayProxy`'s constructor list
+- Reviewed and corrected the dispatch workgroup-count formula — `(particle_count_to_process / 255) / 256` (truncates to 0 for realistic slice sizes, shader never runs) fixed to ceiling division `(particle_count_to_process + 255) / 256`, matching shader's `[numthreads(256,1,1)]`
+- Reviewed and corrected `~ComputeThreadPool()` — flagged and fixed missing `workReady_[i].notify_one()` after `workReady_[i] = true` (setting an atomic alone doesn't wake a thread parked in `.wait(false)`, so destructor would have hung on `join()`)
+- Extended discussion on `shouldExit_` lifecycle and thread shutdown ordering — traced a normal dispatch iteration vs. the final shutdown iteration of `workerThreadFunction()`, then the full RAII chain (window close → `mainLoop()` exits → `Application` destructs → `unique_ptr<ComputeThreadPool>` destructs → signal+notify+join)
+- Cleared up a lifetime misconception: user initially believed `ComputeThreadPool` was constructed/destroyed per-frame; corrected to long-lived-for-the-whole-session model (constructed once at startup, workers park/wake/park every frame via `workReady_`/`workDone_`, only torn down once at program shutdown)
+- `ComputeThreadPool.cpp` is now fully implemented and reviewed: constructor, destructor, `createCommandPoolsAndBuffers()`, `createFences()`, `workerThreadFunction()`
+
+**Left off:**
+`ComputeThreadPool` class complete and correct. Not yet wired into the rest of the application — `Renderer` doesn't yet hold a reference to it, `Application` doesn't yet own/construct it, and nothing calls into it from `drawFrame()`.
+
+**Next session starts at:**
+First, implement `ComputeThreadPool::dispatch()` body in `ComputeThreadPool.cpp` — the declaration already exists in `ComputeThreadPool.h:35-39`, but the `.cpp` has no implementation yet. This runs on the main/render thread (counterpart to the worker loop): write `currentParticleCount_` + `currentDescriptorSets_[i]` per the pseudocode in `docs/vulkan_implementation_plan_17_multithreading.md` (lines 237-260), set `workDone_[i] = false` + `workReady_[i] = true` for every thread, block on `workDoneConditionVariable_.wait(lock, ...)` until all `workDone_[i]` are true, then collect and return the raw `vk::CommandBuffer` handles. Only after `dispatch()` exists should Step 5 (`Renderer.h/.cpp` — accept `const ComputeThreadPool&`, call `dispatch()` in `drawFrame()`) and Step 6 (`Application.h/.cpp` — own `std::unique_ptr<ComputeThreadPool> computeThreadPool_`, construct it, pass to `Renderer`) begin. Remember declaration-order constraint — `computeThreadPool_` must be declared above `renderer_` in `Application.h` so it outlives the `Renderer` that references it.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+- Caught mid-wrap-up: `ComputeThreadPool::dispatch()` is declared but has no `.cpp` implementation — must be written before any `Renderer`/`Application` wiring, since there'd be nothing to call otherwise.
+
+---
+
+## Session 80 — 2026-06-18
+
+**Start time:** 07:51 EDT
+**End time:** 10:20 EDT
+**Duration:** 2 hours 29 minutes
+
+**Covered:**
+- Completed Step 6 — `Application.h` and `Application.cpp` fully wired: `ComputeThreadPool` forward declaration, `computeThreadPool_` unique_ptr member (between `computePipeline_` and `particleGraphicsPipeline_`), construction in `initVulkan()` with `std::max(1u, hardware_concurrency() - 1)`, passed as 7th argument to `Renderer` constructor
+- Fixed `std::vector<std::atomic<bool>>` compile error — `atomic<bool>` is not move-constructible; switched to `std::array<std::atomic<bool>, MAX_THREAD_COUNT>` with `{}` init, removed populate loop from constructor
+- Fixed `std::vector<vk::raii::CommandPool/Buffer>::resize()` compile error — RAII handles have deleted default constructors; switched to `push_back(std::move(...))` in `createCommandPoolsAndBuffers()`
+- Removed `createFences()` and `fences_` entirely — per-thread fences caused deadlock on second frame (reset after use but never re-signaled; `computeInflightFence_` in `drawFrame()` already provides CPU-GPU sync)
+- Fixed `dispatch()` predicate — `std::span(workDone_).first(threadCount_)` with `all_of` lambda to avoid iterating unused array slots
+- Windows build passed; ran smoke test — app rendered for a few seconds then crashed
+- Diagnosed new validation error: `vkResetCommandBuffer() is in use` — `ComputeThreadPool` has only one set of `threadCount_` command buffers; with `MAX_FRAMES_IN_FLIGHT = 2`, frame 1 re-records frame 0's buffers while GPU is still executing them
+
+**Left off:**
+`ComputeThreadPool` crashes after a few frames because all frames share one set of per-thread command buffers — needs `MAX_FRAMES_IN_FLIGHT` sets.
+
+**Next session starts at:**
+Fix `ComputeThreadPool` to use per-frame command buffers: in `.h` add `MAX_FRAMES_IN_FLIGHT = 2` and change `commandPools_`/`commandBuffers_` to `std::array<std::vector<...>, MAX_FRAMES_IN_FLIGHT>`; add `uint32_t currentFrameIndex_` to per-dispatch state. In `.cpp` add outer `MAX_FRAMES_IN_FLIGHT` loop in `createCommandPoolsAndBuffers()`; in `dispatch()` set `currentFrameIndex_ = current_frame` before signal loop and index result collection with `commandBuffers_[current_frame][i]`; in `workerThreadFunction()` use `commandBuffers_[currentFrameIndex_][thread_index]` everywhere.
+
+**Open questions / notes:**
+- `computeFrameSlots_[i].computeCommandBuffer_` allocated in `initializeComputeFrameSlots()` is now unused (thread pool command buffers replaced it) — dead allocation, tidy-up for "Building a Simple Engine".
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+
+
+## Session 79 — 2026-06-17
+
+**Start time:** 08:20 EDT
+**End time:** 10:08 EDT
+**Duration:** 1 hour 48 minutes
+
+**Covered:**
+- `ComputeThreadPool::dispatch()` implemented — three loops (populate state, signal workers with `notify_one()`, collect command buffers), condition variable wait with `std::ranges::all_of` predicate
+- Discussed why signal and notify loops must be separate (race: thread 0 could finish before thread 1 is even woken)
+- Discussed `notify_one()` vs `notify_all()` — per-thread atomics only ever have one waiter so `notify_one()` is correct
+- `getThreadCount() const` accessor added to `ComputeThreadPool.h`
+- `Renderer.h` Step 5 complete — `ComputeThreadPool` forward declaration, non-const constructor parameter and member (`dispatch()` mutates state, same lesson as `getQueue()` on VulkanContext)
+- `Renderer.cpp` Step 5 complete — constructor initializer list updated, `drawFrame()` compute block replaced: `descriptor_set_pointers` vector (all threads point to same current-frame descriptor set), `dispatch()` call, new submit using `setCommandBuffers(compute_command_buffers)`
+
+**Left off:**
+Step 6 (`Application`) partially started — member insertion position identified (`computeThreadPool_` between `computePipeline_` and `particleGraphicsPipeline_`), forward declaration needed in header, `<thread>` goes in `.cpp` not header.
+
+**Next session starts at:**
+Step 6 — add `class ComputeThreadPool;` forward declaration to `Application.h`, add `std::unique_ptr<ComputeThreadPool> computeThreadPool_` member between `computePipeline_` and `particleGraphicsPipeline_`. Then in `Application.cpp`: add `#include <thread>` and `#include "renderer/compute/ComputeThreadPool.h"`, construct `computeThreadPool_` in `initVulkan()` after `computePipeline_` with `thread_count = std::max(1u, std::thread::hardware_concurrency() - 1)`, pass `*computeThreadPool_` to the `Renderer` constructor. Add `ComputeThreadPool.cpp` to `CMakeLists.txt`. Then full build + Windows smoke tests.
+
+**Open questions / notes:**
+- OBS_HOOK warning still present (harmless, third-party).
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal.
+
+---
+
+## Session 81 — 2026-06-19
+
+**Start time:** 07:47 EDT
+**End time:** 09:11 EDT
+**Duration:** 1 hour 24 minutes
+
+**Covered:**
+- Fixed `ComputeThreadPool` per-frame command buffer bug — changed `commandPools_` and `commandBuffers_` from `std::vector` to `std::array<std::vector<...>, MAX_FRAMES_IN_FLIGHT>`; added `MAX_FRAMES_IN_FLIGHT = 2` constant and `currentFrameIndex_` member to header
+- Updated `createCommandPoolsAndBuffers()` with outer frame loop, indexing into `commandPools_[f]` / `commandBuffers_[f]`
+- Updated `workerThreadFunction()` — all `commandBuffers_[thread_index]` → `commandBuffers_[currentFrameIndex_][thread_index]` (7 occurrences)
+- Updated `dispatch()` — set `currentFrameIndex_ = current_frame` at top, collect results from `commandBuffers_[current_frame][i]`
+- Fixed spurious wakeup bug — added `while (!workReady_[thread_index].load())` guard around `workReady_.wait(false)` so workers only proceed when actually signalled
+- Fixed lost condition variable notification — `workDone_[thread_index] = true` now written under `std::lock_guard<std::mutex>(workDoneMutex_)` before `notify_one()`; removed redundant `workReady_[thread_index] = false` line
+- Adjusted particle size via `SV_PointSize` in `shaders/particles.slang`
+- App runs stably for 5+ minutes with particles animating and viking rooms spinning; no validation errors
+
+**Left off:**
+Chapter 17 (Multithreading) fully complete and verified on Windows.
+
+**Next session starts at:**
+Begin the break projects — TinyRenderer (https://haqr.eu/tinyrenderer/) followed by Ray Tracing in One Weekend (https://raytracing.github.io/books/RayTracingInOneWeekend.html) — before returning for Chapter 18 (Ray Tracing).
+
+**Open questions / notes:**
+- `computeFrameSlots_[i].computeCommandBuffer_` allocated in `initializeComputeFrameSlots()` is now unused (thread pool replaced it) — dead allocation, tidy-up for "Building a Simple Engine"
+- Debug size prints (`vertex size`, `indices size`) in `Application.cpp` still pending removal
+- OBS_HOOK warning still present (harmless, third-party)

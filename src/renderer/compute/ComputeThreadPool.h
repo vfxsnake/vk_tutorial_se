@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <vector>
+#include <array>
 #include <span>
 #include <atomic>
 #include <mutex>
@@ -38,31 +39,38 @@ public:
         uint32_t current_frame
     ) -> std::vector<vk::CommandBuffer>;
 
+    // accessor function
+    uint32_t getThreadCount() const;
+
 private:
 
     void workerThreadFunction(uint32_t thread_index);
     void createCommandPoolsAndBuffers();
-    void createFences();
 
     const VulkanContext& context_;
     const ComputePipeline& computePipeline_;
     const ParticleDescriptorLayout& particleDescriptorLayout_;
+    static constexpr uint32_t MAX_THREAD_COUNT = 16;
+    static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t threadCount_;
 
     // Per-thread GPU resource
-    std::vector<vk::raii::CommandPool> commandPools_;
-    std::vector<vk::raii::CommandBuffer> commandBuffers_;
-    std::vector<vk::raii::Fence> fences_;
+    std::array<std::vector<vk::raii::CommandPool>, MAX_FRAMES_IN_FLIGHT> commandPools_;
+    std::array<std::vector<vk::raii::CommandBuffer>, MAX_FRAMES_IN_FLIGHT> commandBuffers_;
 
     // Threading primitives
     std::vector<std::thread> workerThreads_;
     std::atomic<bool> shouldExit_{false};
-    std::vector<std::atomic<bool>> workReady_;
-    std::vector<std::atomic<bool>> workDone_;
+    
+    // using a capped array for simplicity for now. it remove complexity in the initialization of this variables.
+    std::array<std::atomic<bool>, MAX_THREAD_COUNT> workReady_{};
+    std::array<std::atomic<bool>, MAX_THREAD_COUNT> workDone_{};
+    
     std::condition_variable workDoneConditionVariable_;
     std::mutex workDoneMutex_;
 
     // per-dispatch state set by main thread before signalling workers
     std::vector<vk::DescriptorSet> currentDescriptorSets_;
     uint32_t currentParticleCount_{0};
+    uint32_t currentFrameIndex_{0};
 };

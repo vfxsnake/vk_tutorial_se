@@ -25,6 +25,7 @@ class MsaaColorImage;
 class ParticleDescriptorLayout;
 class ComputePipeline;
 class ParticleGraphicsPipeline;
+class ComputeThreadPool;
 
 class Application
 {
@@ -71,6 +72,7 @@ private:
     std::unique_ptr<GraphicsPipeline> graphicsPipeline_;
     std::unique_ptr<ParticleDescriptorLayout> particleDescriptorLayout_;
     std::unique_ptr<ComputePipeline> computePipeline_;
+    std::unique_ptr<ComputeThreadPool> computeThreadPool_;
     std::unique_ptr<ParticleGraphicsPipeline> particleGraphicsPipeline_;
     std::unique_ptr<Renderer> renderer_;
     std::unique_ptr<MsaaColorImage> msaaColorImage_;

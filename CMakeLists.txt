@@ -66,6 +66,7 @@ add_executable(VulkanTutorial
     src/renderer/compute/ComputePipeline.cpp
     src/renderer/compute/ParticleDescriptorLayout.cpp
     src/renderer/compute/ParticleGraphicsPipeline.cpp
+    src/renderer/compute/ComputeThreadPool.cpp
     src/renderer/descriptors/FrameDescriptorLayout.cpp
     src/renderer/descriptors/TextureDescriptorLayout.cpp
     src/renderer/image_resources/Texture.cpp
